@@ -199,3 +199,6 @@ export const MOCK_GAMES: Game[] = [
     screenshots: [],
   },
 ];
+
+/** The bundled, MIT-licensed demo is shown when the backend catalog is empty. */
+export const DEMO_GAMES = MOCK_GAMES.filter((game) => game.id.startsWith('demo-'));

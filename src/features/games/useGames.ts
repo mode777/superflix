@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { dataSource, pb } from '@/lib/pb';
-import { MOCK_GAMES } from '@/data/mockGames';
+import { DEMO_GAMES, MOCK_GAMES } from '@/data/mockGames';
 import { mapGameRecord } from './mapGame';
 import type { Game, GameFilters } from '@/types/games';
 
 async function fetchGames(): Promise<Game[]> {
   if (dataSource === 'mock') return MOCK_GAMES;
   const records = await pb.collection('games').getFullList({ sort: 'title' });
-  return records.map((record) => mapGameRecord(record as unknown as Record<string, unknown>));
+  const games = records.map((record) =>
+    mapGameRecord(record as unknown as Record<string, unknown>),
+  );
+  // A fresh instance has schema but no content; keep the bundled demo playable.
+  return games.length > 0 ? games : DEMO_GAMES;
 }
 
 export function useGames(filters: GameFilters) {

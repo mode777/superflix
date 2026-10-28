@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { dataSource, pb } from '@/lib/pb';
-import { MOCK_GAMES } from '@/data/mockGames';
+import { DEMO_GAMES, MOCK_GAMES } from '@/data/mockGames';
 import { useLocalGameStore } from '@/features/console/localGameStore';
 import { mapGameRecord } from './mapGame';
 import type { Game } from '@/types/games';
@@ -16,6 +16,10 @@ export function useGame(slug: string | undefined) {
       if (!slug) return null;
       if (localGame) return localGame;
       if (dataSource === 'mock') return MOCK_GAMES.find((game) => game.slug === slug) ?? null;
+
+      // The bundled demo works even when PocketBase has no catalog yet.
+      const demo = DEMO_GAMES.find((game) => game.slug === slug);
+      if (demo) return demo;
 
       try {
         const record = await pb
