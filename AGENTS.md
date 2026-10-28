@@ -144,8 +144,28 @@ hard-coded colors.
 
 ## Deployment
 
+Live at **<https://snes.alexklingenbeck.de>**. Hosting is GitOps-only via
+`mode777/cloud.alexklingenbeck.de`:
+
+- `superflix/resources.yaml` — namespace, Deployment, Service, Traefik
+  IngressRoute, cert-manager Certificate, Harbor pull secret, admin env.
+- `my-cluster/cluster-kustomizations.yaml` — `flux-superflix` (depends on
+  `flux-longhorn` and `flux-cluster-issuer`).
+- `image-automation/1_repository_policy.yaml` — `superflix` ImageRepository /
+  ImagePolicy (semver, prereleases allowed).
+- Data uses the PSX-style hostPath `/var/www/superflix/data`; the container
+  runs as root (`runAsUser: 0`).
+- Admin credentials are plaintext `POCKETBASE_ADMIN_EMAIL` /
+  `POCKETBASE_ADMIN_PASSWORD` env values in `superflix/resources.yaml`, matching
+  the PSX pattern. Rotate them there; the entrypoint upserts the superuser on
+  restart.
+
 `Dockerfile` builds the SPA (fetching core + DATs first) and copies `dist/`,
 `pb_migrations/`, and `pb_hooks/` into the PocketBase image. The SPA uses a hash
 router, so no SPA fallback is needed. `pb_hooks/main.pb.js` only sets
 `X-Content-Type-Options`; add COOP/COEP only if a future core needs
 SharedArrayBuffer.
+
+Release: push a `v*` tag. `.github/workflows/release.yml` runs `publish.sh`,
+which builds `harbor.alexklingenbeck.de/my/superflix:<version>` and pushes it.
+Flux image automation bumps the tag in GitOps.

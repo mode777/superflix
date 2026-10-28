@@ -77,7 +77,9 @@ In production the superuser is created from the `POCKETBASE_ADMIN_EMAIL` /
 
 Set `VITE_DATA_SOURCE=pocketbase` (and `VITE_PB_URL` if PocketBase is on a
 different origin) to use the real catalog instead of the mock data. The schema
-is applied by `pb_migrations/0001_initial.js` on first serve.
+is applied by `pb_migrations/0001_initial.js` on first serve. A fresh
+production instance with an empty `games` collection falls back to the bundled
+Gothicvania demo so the player is usable immediately.
 
 ## How ROM identification works
 
@@ -181,6 +183,30 @@ docker run -p 8090:8090 -v "$PWD/pb_data:/pocketbase/pb_data" superflix
 
 `VITE_PB_URL` is empty for same-origin PocketBase. The SPA uses a hash router,
 so PocketBase’s static handler needs no SPA fallback.
+
+### Live instance
+
+**<https://snes.alexklingenbeck.de>**
+
+Deployment follows the PSflix pattern and is managed entirely from the
+[`cloud.alexklingenbeck.de`](https://github.com/mode777/cloud.alexklingenbeck.de)
+GitOps repo:
+
+| Piece | Location |
+|---|---|
+| App manifests | `superflix/resources.yaml` |
+| Flux Kustomization | `flux-superflix` (depends on `flux-longhorn`, `flux-cluster-issuer`) |
+| Image | `harbor.alexklingenbeck.de/my/superflix:<version>` |
+| Release | GitHub Actions on `v*` tags (`publish.sh`) |
+| Image automation | `superflix` ImageRepository/ImagePolicy in `image-automation/1_repository_policy.yaml` |
+| TLS | cert-manager `letsencrypt-prod`, secret `superflix-tls` |
+| Data | hostPath `/var/www/superflix/data` (PSX pattern) |
+| Admin env | `POCKETBASE_ADMIN_EMAIL` / `POCKETBASE_ADMIN_PASSWORD` in `superflix/resources.yaml` |
+
+Pushing a `v*` tag builds and pushes the image; Flux image automation bumps the
+tag in GitOps, and the cluster reconciles within ~1 minute. Rotate the admin
+password by editing the env values in `superflix/resources.yaml` (the
+PocketBase entrypoint upserts the superuser on restart).
 
 ## Licensing
 
