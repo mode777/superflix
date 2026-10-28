@@ -1,0 +1,18 @@
+name: debug-harbor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check credentials
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          echo "username length: ${#HARBOR_USERNAME}"
+          echo "password length: ${#HARBOR_PASSWORD}"
+          code=$(curl -s -o /dev/null -w "%{http_code}" -u "$HARBOR_USERNAME:$HARBOR_PASSWORD" "https://harbor.alexklingenbeck.de/service/token?service=harbor-registry&scope=repository:my/superflix:pull,push")
+          echo "token status: $code"
