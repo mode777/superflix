@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { dataSource, pb } from '@/lib/pb';
-import { DEMO_GAMES, MOCK_GAMES } from '@/data/mockGames';
+import { MOCK_GAMES } from '@/data/mockGames';
+import { DEMO_GAME } from '@/data/demoGame';
 import { mapGameRecord } from './mapGame';
 import type { Game, GameFilters } from '@/types/games';
 
@@ -11,7 +12,7 @@ async function fetchGames(): Promise<Game[]> {
     mapGameRecord(record as unknown as Record<string, unknown>),
   );
   // A fresh instance has schema but no content; keep the bundled demo playable.
-  return games.length > 0 ? games : DEMO_GAMES;
+  return games.length > 0 ? games : [DEMO_GAME];
 }
 
 export function useGames(filters: GameFilters) {

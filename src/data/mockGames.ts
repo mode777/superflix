@@ -1,4 +1,5 @@
 import type { Game } from '@/types/games';
+import { DEMO_GAME } from './demoGame';
 
 /**
  * Development catalog. These entries contain only factual metadata and
@@ -6,48 +7,7 @@ import type { Game } from '@/types/games';
  * Real instances populate the PocketBase `games` collection via the importer.
  */
 export const MOCK_GAMES: Game[] = [
-  {
-    id: 'demo-gothicvania',
-    slug: 'gothicvania',
-    title: 'Gothicvania',
-    region: 'NTSC-U',
-    genre: 'Platform',
-    developer: 'Tom D',
-    publisher: 'Homebrew (MIT)',
-    release: '2026-06-22',
-    description:
-      'A graveyard action-platformer demo: run, jump, and sword-fight through a parallax-layered cemetery while skeletons, hell-gatos, and ghosts try to stop you. Bundled with Superflix as a license-friendly test ROM — it is a complete homebrew game, not a commercial title.',
-    players: '1',
-    coverColors: ['#22262b', '#d92d3a'],
-    screenshots: [],
-    romUrl: './roms/gothicvania.sfc',
-    romCrc32: '88D63376',
-    romSize: 524288,
-    header: {
-      title: 'GOTHICVANIA CEMETERY',
-      mapper: 'LoROM',
-      mapMode: 0x20,
-      fastRom: false,
-      cartridgeType: 0x00,
-      cartridgeTypeLabel: 'ROM',
-      hasBattery: false,
-      romSizeCode: 0x09,
-      romSize: 524288,
-      sramSizeCode: 0x00,
-      sramSize: 0,
-      regionCode: 0x01,
-      region: 'NTSC-U',
-      regionLabel: 'USA / Canada',
-      licenseeCode: 0x00,
-      version: 0,
-      checksum: 25605,
-      checksumComplement: 39930,
-      headerOffset: 0x7fc0,
-      makerCode: null,
-      gameCode: 'SNES',
-      score: 130,
-    },
-  },
+  DEMO_GAME,
   {
     id: 'mock-1',
     slug: 'super-mario-world',
@@ -200,5 +160,3 @@ export const MOCK_GAMES: Game[] = [
   },
 ];
 
-/** The bundled, MIT-licensed demo is shown when the backend catalog is empty. */
-export const DEMO_GAMES = MOCK_GAMES.filter((game) => game.id.startsWith('demo-'));
