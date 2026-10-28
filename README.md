@@ -195,7 +195,7 @@ GitOps repo:
 | Piece | Location |
 |---|---|
 | App manifests | `superflix/resources.yaml` |
-| Flux Kustomization | `flux-superflix` (depends on `flux-longhorn`, `flux-cluster-issuer`) |
+| Flux Kustomization | `flux-superflix` (depends on `flux-cluster-issuer`) |
 | Image | `harbor.alexklingenbeck.de/my/superflix:<version>` |
 | Release | GitHub Actions on `v*` tags (`publish.sh`) |
 | Image automation | `superflix` ImageRepository/ImagePolicy in `image-automation/1_repository_policy.yaml` |

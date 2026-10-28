@@ -149,8 +149,7 @@ Live at **<https://snes.alexklingenbeck.de>**. Hosting is GitOps-only via
 
 - `superflix/resources.yaml` — namespace, Deployment, Service, Traefik
   IngressRoute, cert-manager Certificate, Harbor pull secret, admin env.
-- `my-cluster/cluster-kustomizations.yaml` — `flux-superflix` (depends on
-  `flux-longhorn` and `flux-cluster-issuer`).
+- `my-cluster/cluster-kustomizations.yaml` — `flux-superflix` (depends on `flux-cluster-issuer`).
 - `image-automation/1_repository_policy.yaml` — `superflix` ImageRepository /
   ImagePolicy (semver, prereleases allowed).
 - Data uses the PSX-style hostPath `/var/www/superflix/data`; the container
