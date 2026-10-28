@@ -34,8 +34,19 @@ tools/                   PocketBase download/serve
 pb_migrations/           Generated initial schema
 pb_schema.json           Generated schema export (source of truth is the script)
 public/roms/             Bundled MIT-licensed demo ROM (Gothicvania)
+openspec/                Spec-driven development: changes/ + specs/ + config.yaml
+.opencode/               OpenCode slash commands and skills for the opsx workflow
 ROADMAP.md               Milestones M1–M3 and cross-cutting work
 ```
+
+## Spec-driven changes (OpenSpec)
+
+OpenSpec is initialized with the `spec-driven` schema for the OpenCode tool.
+Start a change with `/opsx-propose <idea>` (OpenCode) or
+`openspec new change <name>`; implement with `/opsx-apply`; archive with
+`/opsx-archive`. Active changes live in `openspec/changes/`, merged specs in
+`openspec/specs/`. Run `openspec validate --strict` before archiving. The CLI
+installs globally: `npm install -g @fission-ai/openspec`.
 
 ## Architecture decisions
 

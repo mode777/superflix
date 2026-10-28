@@ -1,0 +1,49 @@
+schema: spec-driven
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+
+context: |
+  SNES-only project. Never add PlayStation/PS1 code, CHD, memory cards,
+  BIOS files, or a streaming/SharedArrayBuffer layer. SNES ROMs are whole
+  files (256 KB-8 MB) loaded in one piece by Nostalgist — no streaming.
+
+  src/lib/snes must stay pure and framework-free (it runs in Node tests).
+  No-Intro DATs are headerless: always hash the copier-header-stripped image.
+
+  Never plan commits of commercial ROMs, BIOS files, DATs, core binaries,
+  box art, or screenshots. The only bundled ROM is the MIT-licensed
+  public/roms/gothicvania.sfc.
+
+  The UI never imports Nostalgist directly; all emulator access goes through
+  the boundary in src/features/console/services/emulator.ts.
+
+  Admin tooling stays behind AdminGate with its dedicated PocketBase client;
+  the catalog and player remain public.
+
+  Style with the Tailwind 4 theme tokens in src/styles/index.css
+  (bg-surface, text-on-surface, glass-panel, ...) — no hard-coded colors.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
