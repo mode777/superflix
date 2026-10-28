@@ -1,5 +1,5 @@
 services:
-  snesflix:
+  superflix:
     build: .
     ports:
       - '8090:8090'

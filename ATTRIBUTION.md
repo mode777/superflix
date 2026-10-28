@@ -1,7 +1,16 @@
 # Attribution
 
-This project is a self-hosted catalog. It does not ship ROMs or copyrighted
-box art. The following data, code, and assets are used at build/runtime:
+This project is a self-hosted catalog. It ships **one MIT-licensed homebrew
+ROM** for testing and no commercial ROMs or copyrighted box art. The following
+data, code, and assets are used at build/runtime:
+
+## Bundled demo ROM
+
+- **Gothicvania** — <https://github.com/donth77/snes-homebrew> — MIT.
+  Copyright (c) 2026 Tom D. The full license text is in
+  [`public/roms/LICENSE`](./public/roms/LICENSE).
+- Art adapted from **GothicVania Cemetery** by **ansimuz** —
+  <https://ansimuz.itch.io/gothicvania-cemetery> — CC0.
 
 ## Data
 

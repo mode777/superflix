@@ -143,7 +143,7 @@ export function GameWindow({
             <button
               type="button"
               onClick={() => romInputRef.current?.click()}
-              className="rounded-lg bg-gradient-to-br from-primary to-secondary-container px-4 py-2 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+              className="rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-4 py-2 text-body-md font-semibold text-on-primary transition hover:brightness-110"
             >
               Choose ROM
             </button>

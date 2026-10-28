@@ -77,7 +77,7 @@ export function RomDropzone({
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        className="rounded-lg bg-gradient-to-br from-primary to-secondary-container px-4 py-2 text-body-md font-semibold text-on-primary transition hover:brightness-110 disabled:opacity-50"
+        className="rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-4 py-2 text-body-md font-semibold text-on-primary transition hover:brightness-110 disabled:opacity-50"
       >
         Select ROM
       </button>

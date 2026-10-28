@@ -14,13 +14,14 @@ export function useEmulator(
 ) {
   const localRom = useRomStore((state) => (gameId ? state.roms[gameId] : undefined));
   const bootedRef = useRef<string | null>(null);
+  const remoteUrl = romUrl ? new URL(romUrl, document.baseURI).toString() : undefined;
 
-  const bootKey = gameId ? `${gameId}:${localRom?.nonce ?? romUrl ?? 'none'}` : null;
+  const bootKey = gameId ? `${gameId}:${localRom?.nonce ?? remoteUrl ?? 'none'}` : null;
 
   useEffect(() => {
     if (!gameId || !bootKey) return;
     const canvas = canvasRef.current;
-    const source = localRom?.file ?? romUrl;
+    const source = localRom?.file ?? remoteUrl;
     if (!canvas || !source) return;
     if (bootedRef.current === bootKey) return;
 
@@ -44,7 +45,7 @@ export function useEmulator(
     return () => {
       cancelled = true;
     };
-  }, [bootKey, gameId, localRom, romUrl, canvasRef]);
+  }, [bootKey, gameId, localRom, remoteUrl, canvasRef]);
 
   useEffect(() => {
     return () => {
@@ -62,7 +63,7 @@ export function useEmulator(
 
   return {
     localRom,
-    hasRom: Boolean(localRom?.file ?? romUrl),
+    hasRom: Boolean(localRom?.file ?? remoteUrl),
     loadLocalRom,
   };
 }

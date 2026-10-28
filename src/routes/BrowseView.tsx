@@ -59,7 +59,7 @@ export default function BrowseView() {
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
                 to="/admin"
-                className="rounded-lg bg-gradient-to-br from-primary to-secondary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+                className="rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
               >
                 Import a ROM
               </Link>

@@ -10,6 +10,8 @@ import type { RomIdentification } from '@/lib/snes/types';
 import { showToast } from '@/lib/toast';
 import { useLocalGameStore } from '@/features/console/localGameStore';
 import { useRomStore } from '@/features/console/romStore';
+import { useAdminAuthStore } from '@/admin/lib/authStore';
+import { adminAuth } from '@/admin/lib/pb-auth';
 import type { Game, Region } from '@/types/games';
 
 function cleanDatName(name: string): string {
@@ -41,7 +43,7 @@ function toGame(result: RomIdentification, file: File): Game {
     release: year ? `${year}-01-01` : '',
     description: `Imported locally from ${file.name}. Add a description and artwork in the catalog editor.`,
     players: result.match?.fields.maxusers ?? '',
-    coverColors: ['#6d4aff', '#ffb703'],
+    coverColors: ['#22262b', '#d92d3a'],
     screenshots: [],
     romCrc32: result.hashes.crc32,
     romSize: result.normalizedSize,
@@ -107,6 +109,7 @@ function DatStatus({
 
 export default function AdminView() {
   const navigate = useNavigate();
+  const adminUser = useAdminAuthStore((state) => state.user);
   const datQuery = useQuery({
     queryKey: ['snes-no-intro-dat'],
     queryFn: () =>
@@ -161,21 +164,38 @@ export default function AdminView() {
 
   return (
     <>
-      <AmbientBackground accent="#6d4aff" secondary="#ff8fbf" />
+      <AmbientBackground accent="#5b9dff" secondary="#d92d3a" />
       <main className="relative mx-auto max-w-page px-margin-mobile pb-24 pt-32 md:px-margin-desktop">
-        <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-label-caps uppercase tracking-[0.2em] text-primary">
-          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-            fingerprint
-          </span>
-          Importer
-        </span>
-        <h1 className="mt-4 text-headline-xl-mobile font-extrabold tracking-tight text-on-surface md:text-headline-xl">
-          Identify a ROM
-        </h1>
-        <p className="mt-3 max-w-2xl text-body-lg text-on-surface-variant">
-          Drop a Super Nintendo ROM. The copier header is stripped, CRC32/MD5/SHA1 are computed,
-          and the internal header is parsed against the No-Intro index — all in your browser.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-label-caps uppercase tracking-[0.2em] text-primary">
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                fingerprint
+              </span>
+              Importer
+            </span>
+            <h1 className="mt-4 text-headline-xl-mobile font-extrabold tracking-tight text-on-surface md:text-headline-xl">
+              Identify a ROM
+            </h1>
+            <p className="mt-3 max-w-2xl text-body-lg text-on-surface-variant">
+              Drop a Super Nintendo ROM. The copier header is stripped, CRC32/MD5/SHA1 are
+              computed, and the internal header is parsed against the No-Intro index — all in your
+              browser.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+            <span className="max-w-[220px] truncate text-body-md text-on-surface-variant">
+              {adminUser?.email ?? 'Superuser'}
+            </span>
+            <button
+              type="button"
+              onClick={() => adminAuth.signOut()}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-body-md text-on-surface-variant transition hover:border-white/20 hover:text-on-surface"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
 
         <div className="mt-6">
           <DatStatus
@@ -292,7 +312,7 @@ export default function AdminView() {
               <button
                 type="button"
                 onClick={handlePlay}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-primary to-secondary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
               >
                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
                   play_arrow

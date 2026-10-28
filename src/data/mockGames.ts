@@ -7,6 +7,48 @@ import type { Game } from '@/types/games';
  */
 export const MOCK_GAMES: Game[] = [
   {
+    id: 'demo-gothicvania',
+    slug: 'gothicvania',
+    title: 'Gothicvania',
+    region: 'NTSC-U',
+    genre: 'Platform',
+    developer: 'Tom D',
+    publisher: 'Homebrew (MIT)',
+    release: '2026-06-22',
+    description:
+      'A graveyard action-platformer demo: run, jump, and sword-fight through a parallax-layered cemetery while skeletons, hell-gatos, and ghosts try to stop you. Bundled with Superflix as a license-friendly test ROM — it is a complete homebrew game, not a commercial title.',
+    players: '1',
+    coverColors: ['#22262b', '#d92d3a'],
+    screenshots: [],
+    romUrl: './roms/gothicvania.sfc',
+    romCrc32: '88D63376',
+    romSize: 524288,
+    header: {
+      title: 'GOTHICVANIA CEMETERY',
+      mapper: 'LoROM',
+      mapMode: 0x20,
+      fastRom: false,
+      cartridgeType: 0x00,
+      cartridgeTypeLabel: 'ROM',
+      hasBattery: false,
+      romSizeCode: 0x09,
+      romSize: 524288,
+      sramSizeCode: 0x00,
+      sramSize: 0,
+      regionCode: 0x01,
+      region: 'NTSC-U',
+      regionLabel: 'USA / Canada',
+      licenseeCode: 0x00,
+      version: 0,
+      checksum: 25605,
+      checksumComplement: 39930,
+      headerOffset: 0x7fc0,
+      makerCode: null,
+      gameCode: 'SNES',
+      score: 130,
+    },
+  },
+  {
     id: 'mock-1',
     slug: 'super-mario-world',
     title: 'Super Mario World',
@@ -18,7 +60,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Mario and Luigi travel to Dinosaur Land to rescue Princess Peach from Bowser. The game introduces Yoshi and a connected overworld that hides dozens of secret exits across its seven worlds.',
     players: '1-2',
-    coverColors: ['#2563eb', '#16a34a'],
+    coverColors: ['#1e5bd6', '#16a34a'],
     screenshots: [],
   },
   {
@@ -33,7 +75,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Link sets out to rescue the seven maidens and defeat the wizard Agahnim. A dual-world structure lets him travel between Hyrule and the Dark World, with dungeons built around new items and layered puzzles.',
     players: '1',
-    coverColors: ['#ca8a04', '#166534'],
+    coverColors: ['#e0a800', '#16a34a'],
     screenshots: [],
   },
   {
@@ -48,7 +90,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'A chance meeting at the Millennial Fair sends Crono and his friends across several eras to prevent a global catastrophe. The battle system combines party attacks with enemy positioning, and the story branches into multiple endings.',
     players: '1',
-    coverColors: ['#7c3aed', '#db2777'],
+    coverColors: ['#1e5bd6', '#d92d3a'],
     screenshots: [],
   },
   {
@@ -63,7 +105,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Samus returns to Zebes to recover a stolen Metroid larva. The planet is a single interconnected map, and each new ability opens routes that were previously out of reach.',
     players: '1',
-    coverColors: ['#0f766e', '#1e3a8a'],
+    coverColors: ['#16a34a', '#1e5bd6'],
     screenshots: [],
   },
   {
@@ -78,7 +120,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Donkey Kong and Diddy Kong chase after their stolen banana hoard. The game is built around pre-rendered 3D sprites, mine cart rides, and tightly timed platforming across a large island.',
     players: '1-2',
-    coverColors: ['#b45309', '#78350f'],
+    coverColors: ['#22262b', '#e0a800'],
     screenshots: [],
   },
   {
@@ -93,7 +135,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'A rebellion against the Gestahlian Empire brings together a large cast of characters, each with a distinct combat skill. The second half of the story turns the world map into an open-ended recovery effort.',
     players: '1',
-    coverColors: ['#1e40af', '#7e22ce'],
+    coverColors: ['#1e5bd6', '#22262b'],
     screenshots: [],
   },
   {
@@ -108,7 +150,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'A futuristic racing game built around Mode 7 scaling and high-speed tracks. Vehicles have no weapons; the challenge is managing energy, sharp corners, and the boost pads that line each circuit.',
     players: '1',
-    coverColors: ['#dc2626', '#1d4ed8'],
+    coverColors: ['#d92d3a', '#1e5bd6'],
     screenshots: [],
   },
   {
@@ -123,7 +165,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Fox McCloud and his wingmates defend Corneria from Andross. The Super FX chip renders the game’s polygon ships and rail-shooter stages, with branching routes through the Lylat system.',
     players: '1',
-    coverColors: ['#0369a1', '#f59e0b'],
+    coverColors: ['#22262b', '#5b9dff'],
     screenshots: [],
   },
   {
@@ -138,7 +180,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Mario teams up with Mallow and Geno to repair the Star Road. The turn-based battles use timed button presses for extra damage and defense, and the isometric world is full of hidden platforming challenges.',
     players: '1',
-    coverColors: ['#be123c', '#f59e0b'],
+    coverColors: ['#d92d3a', '#ffd23f'],
     screenshots: [],
   },
   {
@@ -153,7 +195,7 @@ export const MOCK_GAMES: Game[] = [
     description:
       'Yoshi carries Baby Mario across a storybook island while fending off Kamek’s minions. The hand-drawn art, egg-throwing, and floaty jump give the game a distinct feel within the Mario platformer line.',
     players: '1-2',
-    coverColors: ['#16a34a', '#facc15'],
+    coverColors: ['#16a34a', '#ffd23f'],
     screenshots: [],
   },
 ];

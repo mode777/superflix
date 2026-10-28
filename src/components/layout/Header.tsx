@@ -29,7 +29,7 @@ export function Header() {
           <Link to="/" className="flex min-w-0 items-center gap-3">
             <BrandMark className="h-9 w-9 shrink-0" />
             <span className="truncate text-headline-lg font-semibold tracking-tight text-on-surface">
-              SNESflix
+              Superflix
             </span>
             <span className="hidden text-label-caps uppercase tracking-[0.18em] text-on-surface-variant lg:inline">
               Super Nintendo Catalog

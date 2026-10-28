@@ -26,7 +26,7 @@ for (const [remote, local] of FILES) {
   process.stdout.write(`Fetching ${local}... `);
 
   const response = await fetch(url, {
-    headers: { 'User-Agent': 'snesflix-dats-fetch' },
+    headers: { 'User-Agent': 'superflix-dats-fetch' },
   });
   if (!response.ok) {
     throw new Error(`${url} returned HTTP ${response.status}`);

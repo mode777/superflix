@@ -3,16 +3,16 @@ import type { SnesHeader } from '@/lib/snes/types';
 import type { Game, Region } from '@/types/games';
 
 const PALETTES: [string, string][] = [
-  ['#2563eb', '#16a34a'],
-  ['#ca8a04', '#166534'],
-  ['#7c3aed', '#db2777'],
-  ['#0f766e', '#1e3a8a'],
-  ['#b45309', '#78350f'],
-  ['#1e40af', '#7e22ce'],
-  ['#dc2626', '#1d4ed8'],
-  ['#0369a1', '#f59e0b'],
-  ['#be123c', '#f59e0b'],
-  ['#16a34a', '#facc15'],
+  ['#1e5bd6', '#5b9dff'],
+  ['#d92d3a', '#ff6b70'],
+  ['#e0a800', '#ffd23f'],
+  ['#16a34a', '#4ade80'],
+  ['#22262b', '#5b9dff'],
+  ['#22262b', '#d92d3a'],
+  ['#22262b', '#e0a800'],
+  ['#22262b', '#16a34a'],
+  ['#1e5bd6', '#d92d3a'],
+  ['#16a34a', '#ffd23f'],
 ];
 
 function paletteFor(title: string): [string, string] {

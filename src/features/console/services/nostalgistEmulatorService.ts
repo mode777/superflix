@@ -58,7 +58,10 @@ export class NostalgistEmulatorService implements EmulatorService {
 
     let input: File | string;
     if (typeof rom === 'string') {
-      input = rom;
+      input =
+        typeof document !== 'undefined'
+          ? new URL(rom, document.baseURI).toString()
+          : rom;
     } else if (rom instanceof File) {
       input = rom;
     } else {

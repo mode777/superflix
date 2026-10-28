@@ -5,6 +5,7 @@ import ConsoleView from './routes/ConsoleView';
 import DetailsView from './routes/DetailsView';
 import NotFoundView from './routes/NotFoundView';
 import AdminView from './routes/AdminView';
+import { AdminGate } from './admin/AdminGate';
 
 export const router = createHashRouter([
   {
@@ -14,7 +15,14 @@ export const router = createHashRouter([
       { index: true, element: <BrowseView /> },
       { path: 'game/:slug', element: <DetailsView /> },
       { path: 'play/:slug', element: <ConsoleView /> },
-      { path: 'admin', element: <AdminView /> },
+      {
+        path: 'admin',
+        element: (
+          <AdminGate>
+            <AdminView />
+          </AdminGate>
+        ),
+      },
       { path: '*', element: <NotFoundView /> },
     ],
   },

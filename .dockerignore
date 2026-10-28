@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+.git
+.github
+pb_data
+bin
+coverage
+playwright-report
+test-results
+public/data
+public/cores
+*.log

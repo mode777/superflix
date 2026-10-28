@@ -40,7 +40,7 @@ async function fetchLatestRelease() {
   const response = await fetch(REPO_API_LATEST, {
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'snesflix-download-pocketbase',
+      'User-Agent': 'superflix-download-pocketbase',
     },
   });
 
@@ -122,7 +122,7 @@ async function downloadAsset(url) {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/octet-stream',
-      'User-Agent': 'snesflix-download-pocketbase',
+      'User-Agent': 'superflix-download-pocketbase',
     },
     redirect: 'follow',
   });

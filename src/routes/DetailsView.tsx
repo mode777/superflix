@@ -42,9 +42,9 @@ export default function DetailsView() {
   const { data: game, isLoading, isError } = useGame(slug);
 
   useEffect(() => {
-    document.title = game ? `${game.title} — SNESflix` : 'SNESflix — Super Nintendo Catalog';
+    document.title = game ? `${game.title} — Superflix` : 'Superflix — Super Nintendo Catalog';
     return () => {
-      document.title = 'SNESflix — Super Nintendo Catalog';
+      document.title = 'Superflix — Super Nintendo Catalog';
     };
   }, [game]);
 
@@ -141,7 +141,7 @@ export default function DetailsView() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to={`/play/${game.slug}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-primary to-secondary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
               >
                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
                   play_arrow

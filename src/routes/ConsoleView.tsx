@@ -28,9 +28,9 @@ export default function ConsoleView() {
   const saves = useSaveStates(game?.slug);
 
   useEffect(() => {
-    document.title = game ? `Play ${game.title} — SNESflix` : 'SNESflix — Super Nintendo Catalog';
+    document.title = game ? `Play ${game.title} — Superflix` : 'Superflix — Super Nintendo Catalog';
     return () => {
-      document.title = 'SNESflix — Super Nintendo Catalog';
+      document.title = 'Superflix — Super Nintendo Catalog';
     };
   }, [game]);
 
@@ -142,7 +142,7 @@ export default function ConsoleView() {
 
   return (
     <>
-      <AmbientBackground accent="#ff8fbf" secondary="#6d4aff" />
+      <AmbientBackground accent="#d92d3a" secondary="#5b9dff" />
       <main className="relative mx-auto max-w-page px-margin-mobile pb-24 pt-32 md:px-margin-desktop">
         <Link
           to={`/game/${game.slug}`}

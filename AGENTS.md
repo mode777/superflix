@@ -1,4 +1,4 @@
-# SNESflix — Agent Notes
+# Superflix — Agent Notes
 
 A self-hosted catalog and browser player for Super Nintendo games. React + Vite
 + Tailwind 4 frontend, PocketBase backend, Snes9x (libretro) in WebAssembly via
@@ -28,11 +28,13 @@ src/features/games/      Catalog hooks and PocketBase → UI mapping
 src/features/console/    Emulator service, ROM store, hooks, GameWindow
 src/routes/              Browse / Details / Console / Admin / NotFound
 src/components/          Layout, media cards, metadata, toasts
-src/styles/index.css     Tailwind 4 theme (Obsidian Console + SNES palette)
+src/styles/index.css     Tailwind 4 theme (SNES grey + red/yellow/green/blue)
 scripts/                 fetch-dats, fetch-core, generate-schema
 tools/                   PocketBase download/serve
 pb_migrations/           Generated initial schema
 pb_schema.json           Generated schema export (source of truth is the script)
+public/roms/             Bundled MIT-licensed demo ROM (Gothicvania)
+ROADMAP.md               Milestones M1–M3 and cross-cutting work
 ```
 
 ## Architecture decisions
@@ -74,6 +76,14 @@ Super Mario World (USA) is CRC `B19ED489`; use that as a smoke test.
 Do not replace `hash-wasm` with a hand-rolled MD5/SHA1. Add tests when touching
 the header parser or DAT parser (`npm test`).
 
+### Admin auth
+
+`/admin` is wrapped in `AdminGate` and uses a **dedicated** PocketBase client
+with `LocalAuthStore('superflix_admin_auth')` (separate from the public user
+client). Only the PocketBase `_superusers` collection can sign in. The player
+and catalog remain public. Do not expose the importer or write routes without
+this gate.
+
 ### Data source
 
 `src/lib/pb.ts` exposes `dataSource`:
@@ -105,14 +115,17 @@ limit is 16 MB; save state 2 MB; SRAM 256 KB.
 ### Styling
 
 Tailwind 4 theme lives in `src/styles/index.css` under `@theme`. The palette is
-Obsidian Console with a SNES violet/gold/pink accent. Use the existing tokens
-(`bg-surface`, `text-on-surface`, `text-headline-lg`, `px-margin-mobile`,
-`max-w-page`, `glass-panel`) rather than hard-coded colors.
+the Japanese/European Super Famicom look: grey shell, with red, yellow, green,
+and blue accents. Use the existing tokens (`bg-surface`, `text-on-surface`,
+`text-headline-lg`, `px-margin-mobile`, `max-w-page`, `glass-panel`) rather than
+hard-coded colors.
 
 ## Rules
 
-- **Never commit ROMs, BIOS files, DATs, core binaries, box art, or
-  screenshots.** `public/data/*.dat` and `public/cores/*` are gitignored.
+- **Never commit commercial ROMs, BIOS files, DATs, core binaries, box art, or
+  screenshots.** The only ROM in the repo is the MIT-licensed
+  `public/roms/gothicvania.sfc`; keep its license/attribution intact.
+  `public/data/*.dat` and `public/cores/*` are gitignored.
 - Do not add PlayStation/PS1 code, CHD, memory cards, or a streaming cache.
 - Keep `src/lib/snes` pure and framework-free; it must run in Node tests.
 - Do not use `any` unless a third-party type forces it; map unknown records

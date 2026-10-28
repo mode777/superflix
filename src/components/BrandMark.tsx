@@ -4,22 +4,31 @@ export function BrandMark({ className }: { className?: string }) {
       viewBox="0 0 40 40"
       className={className}
       role="img"
-      aria-label="SNESflix"
+      aria-label="Superflix"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="snesflix-mark" x1="4" y1="4" x2="36" y2="36">
-          <stop offset="0" stopColor="#b9a6ff" />
-          <stop offset="0.55" stopColor="#6d4aff" />
-          <stop offset="1" stopColor="#ffb703" />
+        <linearGradient id="superflix-mark" x1="4" y1="4" x2="36" y2="36">
+          <stop offset="0" stopColor="#4a5058" />
+          <stop offset="1" stopColor="#22262b" />
         </linearGradient>
       </defs>
-      <rect x="3" y="7" width="34" height="26" rx="9" fill="url(#snesflix-mark)" />
-      <rect x="7" y="11" width="26" height="18" rx="6" fill="#121014" opacity="0.72" />
-      <circle cx="14" cy="20" r="3" fill="#ffd166" />
-      <circle cx="21" cy="20" r="3" fill="#ff8fbf" />
-      <rect x="27" y="16" width="3" height="8" rx="1.5" fill="#e9e4f0" />
-      <rect x="24.5" y="18.5" width="8" height="3" rx="1.5" fill="#e9e4f0" />
+      <rect
+        x="3"
+        y="7"
+        width="34"
+        height="26"
+        rx="9"
+        fill="url(#superflix-mark)"
+        stroke="#8b949e"
+        strokeWidth="1.4"
+      />
+      <rect x="7" y="11" width="26" height="18" rx="6" fill="#101214" />
+      <circle cx="13" cy="20" r="2.6" fill="#d92d3a" />
+      <circle cx="19" cy="20" r="2.6" fill="#ffd23f" />
+      <circle cx="25" cy="20" r="2.6" fill="#4ade80" />
+      <circle cx="31" cy="20" r="2.6" fill="#5b9dff" />
+      <rect x="16" y="25" width="8" height="1.6" rx="0.8" fill="#8b949e" opacity="0.65" />
     </svg>
   );
 }

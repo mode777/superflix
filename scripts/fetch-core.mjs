@@ -19,7 +19,7 @@ for (const file of FILES) {
   process.stdout.write(`Fetching ${file}... `);
 
   const response = await fetch(url, {
-    headers: { 'User-Agent': 'snesflix-core-fetch' },
+    headers: { 'User-Agent': 'superflix-core-fetch' },
   });
   if (!response.ok) {
     throw new Error(`${url} returned HTTP ${response.status}`);

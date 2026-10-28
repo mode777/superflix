@@ -1,8 +1,8 @@
 import { cn } from '@/lib/cn';
 
 export function AmbientBackground({
-  accent = '#6d4aff',
-  secondary = '#ffb703',
+  accent = '#5b9dff',
+  secondary = '#d92d3a',
   className,
 }: {
   accent?: string;
