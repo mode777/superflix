@@ -68,6 +68,8 @@ export function RomDropzone({
         type="file"
         accept=".sfc,.smc,.fig,.swc,.bin"
         className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
         onChange={(event) => {
           handleList(event.target.files);
           event.target.value = '';

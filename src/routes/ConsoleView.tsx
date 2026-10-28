@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AmbientBackground } from '@/components/media/AmbientBackground';
 import { MetadataPanel } from '@/components/media/MetadataPanel';
 import { EmptyState } from '@/components/EmptyState';
 import { GameWindow } from '@/features/console/components/GameWindow';
 import { useEmulator } from '@/features/console/hooks/useEmulator';
+import { useAutosave } from '@/features/console/hooks/useAutosave';
 import { useRuntime } from '@/features/console/hooks/useRuntime';
 import { useSaveStates } from '@/features/console/hooks/useSaveStates';
 import { useSettings } from '@/features/console/hooks/useSettings';
 import { emulatorService } from '@/features/console/services';
+import * as saveSync from '@/features/console/services/saveSync';
+import { useSyncStore } from '@/features/console/services/syncStore';
 import type { SaveSlot } from '@/features/console/types';
 import { useGame } from '@/features/games/useGame';
 import { downloadBlob } from '@/lib/download';
@@ -22,10 +25,22 @@ export default function ConsoleView() {
   const { slug } = useParams<{ slug: string }>();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { data: game, isLoading, isError } = useGame(slug);
-  const { hasRom, loadLocalRom } = useEmulator(game?.slug, game?.romUrl, canvasRef);
+
+  const [syncedSram, setSyncedSram] = useState<Blob | null>(null);
+  const syncStatus = useSyncStore((state) => state.status);
   const runtime = useRuntime();
+  useAutosave(game?.slug, runtime.status === 'playing');
+
+  const { hasRom, loadLocalRom } = useEmulator(game?.slug, game?.romUrl, canvasRef);
   const settings = useSettings();
   const saves = useSaveStates(game?.slug);
+
+  useEffect(() => {
+    const slugName = game?.slug;
+    if (!slugName) return;
+    void saveSync.flushPending(slugName);
+    void saveSync.availableSram(slugName).then((blob) => setSyncedSram(blob));
+  }, [game?.slug]);
 
   useEffect(() => {
     document.title = game ? `Play ${game.title} — Superflix` : 'Superflix — Super Nintendo Catalog';
@@ -81,11 +96,21 @@ export default function ConsoleView() {
 
   const handleDelete = useCallback(
     (slot: SaveSlot) => {
-      saves.remove(slot);
+      void saves.remove(slot);
       showToast(`Deleted ${slot}.`, { kind: 'info' });
     },
     [saves],
   );
+
+  const handleLoadSyncedSram = useCallback(async () => {
+    if (!syncedSram) return;
+    try {
+      await emulatorService.loadSram(syncedSram);
+      showToast('Battery save loaded. Press Play.', { kind: 'success' });
+    } catch (error) {
+      showToast(errorMessage(error, 'Could not load the synced battery save.'), { kind: 'error' });
+    }
+  }, [syncedSram]);
 
   const handleDownloadSram = useCallback(async () => {
     try {
@@ -94,6 +119,7 @@ export default function ConsoleView() {
         showToast('No battery save is available yet.', { kind: 'info' });
         return;
       }
+      if (game?.slug) await saveSync.saveSram(game.slug, blob);
       downloadBlob(blob, `${game?.slug ?? 'game'}.srm`);
       showToast('Battery save downloaded.', { kind: 'success' });
     } catch (error) {
@@ -101,14 +127,18 @@ export default function ConsoleView() {
     }
   }, [game?.slug]);
 
-  const handleUploadSram = useCallback(async (file: File) => {
-    try {
-      await emulatorService.loadSram(file);
-      showToast('Battery save loaded. Press Play.', { kind: 'success' });
-    } catch (error) {
-      showToast(errorMessage(error, 'Could not load the battery save.'), { kind: 'error' });
-    }
-  }, []);
+  const handleUploadSram = useCallback(
+    async (file: File) => {
+      try {
+        await emulatorService.loadSram(file);
+        if (game?.slug) await saveSync.saveSram(game.slug, file);
+        showToast('Battery save loaded. Press Play.', { kind: 'success' });
+      } catch (error) {
+        showToast(errorMessage(error, 'Could not load the battery save.'), { kind: 'error' });
+      }
+    },
+    [game?.slug],
+  );
 
   if (isLoading) {
     return (
@@ -176,6 +206,7 @@ export default function ConsoleView() {
             title={game.title}
             hasRom={hasRom}
             savedSlots={saves.slots}
+            syncStatus={syncStatus}
             onPlay={() => void handlePlay()}
             onPause={handlePause}
             onReset={() => void handleReset()}
@@ -190,6 +221,19 @@ export default function ConsoleView() {
             onPickRom={loadLocalRom}
           />
         </div>
+
+        {syncedSram && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-body-md text-on-surface-variant">
+            <span>Synced battery save available.</span>
+            <button
+              type="button"
+              onClick={() => void handleLoadSyncedSram()}
+              className="rounded-lg bg-primary px-3 py-1.5 font-semibold text-on-primary transition hover:brightness-110"
+            >
+              Load battery save
+            </button>
+          </div>
+        )}
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
           <section className="glass-panel rounded-2xl p-6">

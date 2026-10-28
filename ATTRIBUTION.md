@@ -18,9 +18,10 @@ data, code, and assets are used at build/runtime:
 - **libretro-database** — mirror of No-Intro and the libretro developer,
   publisher, genre, releaseyear, and maxusers DATs.
   <https://github.com/libretro/libretro-database> — **CC-BY-SA-4.0**.
-- **libretro-thumbnails** — optional box art/screenshot source.
-  <https://github.com/libretro-thumbnails> — images remain the property of
-  their respective owners.
+- **libretro-thumbnails** — optional box art/screenshot source. Artwork is
+  downloaded at import time, downscaled, and cached in PocketBase; it is never
+  hotlinked. <https://github.com/libretro-thumbnails> — images remain the
+  property of their respective owners and are shown for identification.
 
 ## Emulator
 

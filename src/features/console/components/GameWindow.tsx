@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { SAVE_SLOTS, type EmulatorSettings, type RuntimeState, type SaveSlot } from '../types';
+import type { SyncStatus } from '../services/syncStore';
 
 interface GameWindowProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -9,6 +10,7 @@ interface GameWindowProps {
   title: string;
   hasRom: boolean;
   savedSlots: SaveSlot[];
+  syncStatus?: SyncStatus;
   onPlay: () => void;
   onPause: () => void;
   onReset: () => void;
@@ -72,6 +74,7 @@ export function GameWindow({
   title,
   hasRom,
   savedSlots,
+  syncStatus,
   onPlay,
   onPause,
   onReset,
@@ -184,7 +187,22 @@ export function GameWindow({
         )}
 
         <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
-          <span className="rounded-full bg-black/50 px-2.5 py-1 text-label-caps uppercase tracking-wider text-white/80 backdrop-blur">
+          {syncStatus && syncStatus !== 'idle' && (
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-1 text-label-caps uppercase tracking-wider backdrop-blur',
+                syncStatus === 'error'
+                  ? 'bg-error-container/70 text-error'
+                  : syncStatus === 'synced'
+                    ? 'bg-favorite/20 text-favorite'
+                    : 'bg-black/50 text-white/80',
+              )}
+              data-testid="sync-status"
+            >
+              {syncStatus === 'syncing' ? 'Syncing…' : syncStatus}
+            </span>
+          )}
+          <span className="rounded-full bg-black/50 px-2.5 py-1 text-label-caps uppercase tracking-wider text-white/80 backdrop-blur" data-testid="runtime-status" role="status" aria-live="polite">
             {runtime.status === 'playing' ? 'Live' : runtime.status}
           </span>
           <ControlButton
@@ -199,6 +217,8 @@ export function GameWindow({
           type="file"
           accept=".sfc,.smc,.fig,.swc,.bin"
           className="hidden"
+          tabIndex={-1}
+          aria-hidden="true"
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) onPickRom(file);
@@ -331,6 +351,8 @@ export function GameWindow({
               type="file"
               accept=".srm,.sav"
               className="hidden"
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) onUploadSram(file);

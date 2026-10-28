@@ -26,17 +26,25 @@ vertical slice**, not a finished product:
 - ✅ Browse and details views (mock catalog in development; PocketBase in production)
 - ✅ ROM identification in the browser: copier-header stripping, internal
   header parsing, CRC32/MD5/SHA1, No-Intro DAT matching
-- ✅ “Drop a ROM → identify → play locally” flow
+- ✅ Admin importer: add to catalog with upload progress, duplicate/variant
+  handling, catalog editor (edit / replace ROM / delete / cover override)
+- ✅ Metadata enrichment from the libretro developer/publisher/genre/releaseyear/maxusers DATs
+- ✅ Cover/screenshot download from libretro-thumbnails, downscaled and stored in PocketBase
+- ✅ End-user sign-in, favorites, and local-first cloud save-state/SRAM sync
 - ✅ Browser player via Nostalgist + Snes9x (save states, SRAM export/import,
   CRT scanline overlay, controller input via RetroArch)
 - ✅ Bundled MIT-licensed demo ROM (**Gothicvania**) playable out of the box
 - ✅ PocketBase schema + generated migration for games, ROM variants, save
   states, SRAM, documents, favorites
-- ⏳ PocketBase upload pipeline (the schema and importer contract are ready)
-- ⏳ Metadata enrichment from the libretro developer/publisher/genre DATs
-- ⏳ Cover/screenshot download and storage
 - ✅ Admin/importer gated to the PocketBase superuser
-- ⏳ End-user auth, favorites, and cloud save-state sync UI
+
+## User documentation
+
+- [Documentation index](./docs/README.md)
+- [Hosting](./docs/hosting.md) — local setup, Docker, environment, production, backups
+- [Importing ROMs](./docs/importing.md) — admin flow, duplicates, catalog management
+- [Metadata and artwork](./docs/metadata.md) — sources, provenance, licensing
+- [Playing and controllers](./docs/controllers.md) — keyboard, gamepads, saves
 
 ## Quick start
 
@@ -116,8 +124,10 @@ GoodSNES can be imported as a secondary index if you have legacy dumps.
 | [RetroAchievements](https://retroachievements.org) | Achievements, box art | MD5 | API key; optional |
 | [Hasheous](https://github.com/gaseous-project/hasheous) | Hash → IGDB match | CRC/MD5/SHA1 | Public instance; AGPL server |
 
-The current importer uses **No-Intro only** for identity. The enrichment DATs
-are downloaded by `npm run dats:fetch` and ready for the next phase.
+The importer uses **No-Intro** for identity and merges the libretro enrichment
+DATs for developer, publisher, genre, release year, and player count. Artwork
+comes from libretro-thumbnails and is stored in PocketBase — see
+[metadata](./docs/metadata.md) for provenance and licensing details.
 
 ## Emulator core
 
@@ -125,11 +135,8 @@ are downloaded by `npm run dats:fetch` and ready for the next phase.
 - The core is fetched to `public/cores/` and served same-origin; no CDN
   dependency at runtime.
 - No BIOS, no disc streaming, no memory cards, no SharedArrayBuffer layer.
-- Save states are core-specific; the scaffold keeps them in memory for the
-  session. The `save_state` schema stores `core`/`core_version` so a real
-  implementation can reject incompatible states.
-- If you need a GPL-compatible core, switch to **bsnes** and update the core
-  name in `src/features/console/services/nostalgistEmulatorService.ts`.
+- Save states are stamped with the core that created them (local and cloud) so
+  an incompatible state is refused instead of crashing the emulator.
 
 ## Project layout
 
@@ -223,8 +230,6 @@ The most permissive license that is possible with the chosen stack:
 - **Snes9x** — free for **non-commercial** use; not an OSI open-source license.
   The core is fetched at build time and included in the Docker image, so the
   *combined distributed image* is non-commercial. The source code remains MIT.
-  If you need a fully copyleft-compatible distribution, swap to **bsnes**
-  (GPL-3.0) and license the project accordingly.
 - **Nostalgist.js** — MIT.
 - **PocketBase** — MIT.
 - **libretro-database** — CC-BY-SA-4.0; attribution + share-alike apply.

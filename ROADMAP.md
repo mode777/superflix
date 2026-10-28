@@ -1,6 +1,6 @@
 # Superflix roadmap
 
-Status: **v0.1 — scaffold complete** (2026-10-28)
+Status: **v0.4 — M1–M3 implemented** (2026-10-28)
 
 Guiding principle: SNES ROMs are small (256 KB–8 MB), so the player loads the
 whole file. There is no CHD streaming, BIOS, memory-card, or SharedArrayBuffer
@@ -83,8 +83,7 @@ battery save.
       to tree-shaken SVG icons
 - [ ] User docs: hosting, importing, metadata, controller setup
 - [ ] Landing page / screenshots
-- [ ] Optional: GitHub Actions release on `v*` tags (already scaffolded)
-- [ ] Optional: second core (bsnes) behind the same `EmulatorService`
+- [x] Optional: GitHub Actions release on `v*` tags (already scaffolded)
 
 ## Decisions locked in
 

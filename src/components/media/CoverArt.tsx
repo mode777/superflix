@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '@/lib/cn';
 import type { Game } from '@/types/games';
 
@@ -10,13 +11,16 @@ export function CoverArt({
   className?: string;
   showTitle?: boolean;
 }) {
-  if (game.coverUrl) {
+  const [failed, setFailed] = useState(false);
+
+  if (game.coverUrl && !failed) {
     return (
       <img
         src={game.coverUrl}
         alt={`${game.title} cover`}
         className={cn('h-full w-full object-cover', className)}
         loading="lazy"
+        onError={() => setFailed(true)}
       />
     );
   }

@@ -168,6 +168,56 @@ export function parseDat(text: string): DatEntry[] {
   return entries;
 }
 
+const NON_METADATA_FIELDS = new Set(['name', 'comment', 'description', 'region', 'serial']);
+
+/**
+ * Merge libretro enrichment entries (developer / publisher / genre /
+ * releaseyear / maxusers) into base No-Intro entries matched by CRC32.
+ *
+ * Existing base fields always win; enrichment only fills empty fields. When
+ * several enrichment entries share a CRC32, the one whose name matches the base
+ * entry is preferred, otherwise the first one is used.
+ */
+export function mergeDatEntries(base: DatEntry[], enrichment: DatEntry[]): DatEntry[] {
+  if (enrichment.length === 0) return base;
+
+  const byCrc = new Map<string, DatEntry[]>();
+  for (const entry of enrichment) {
+    const crc = entry.rom.crc32;
+    if (!crc) continue;
+    const group = byCrc.get(crc);
+    if (group) group.push(entry);
+    else byCrc.set(crc, [entry]);
+  }
+
+  return base.map((entry) => {
+    const group = byCrc.get(entry.rom.crc32);
+    if (!group) return entry;
+
+    const matchesName = group.filter((candidate) => candidate.name === entry.name);
+    const candidates = matchesName.length > 0 ? matchesName : group;
+    let fields = entry.fields;
+
+    for (const extra of candidates) {
+      for (const [key, value] of Object.entries(extra.fields)) {
+        if (NON_METADATA_FIELDS.has(key) || !value || fields[key]) continue;
+        fields = { ...fields, [key]: value };
+      }
+    }
+
+    return fields === entry.fields ? entry : { ...entry, fields };
+  });
+}
+
+/**
+ * Rebuild an index from base entries enriched with metadata DATs. Returns the
+ * original index untouched when no enrichment is supplied.
+ */
+export function enrichIndex(index: DatIndex, enrichment: DatEntry[]): DatIndex {
+  if (enrichment.length === 0) return index;
+  return buildDatIndex(mergeDatEntries(index.entries, enrichment));
+}
+
 export function buildDatIndex(entries: DatEntry[]): DatIndex {
   const index: DatIndex = {
     byCrc32: new Map(),

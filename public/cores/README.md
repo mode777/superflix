@@ -12,6 +12,5 @@ stays small and the exact core version is visible in `scripts/fetch-core.mjs`.
 ## License
 
 Snes9x is free for **non-commercial** use. The core is distributed under the
-Snes9x license, not an OSI open-source license. If you need a GPL-compatible
-core, swap in bsnes (see the project README) and update the core name in
-`src/features/console/services/nostalgistEmulatorService.ts`.
+Snes9x license, not an OSI open-source license. Review that license before
+distributing the built image commercially.

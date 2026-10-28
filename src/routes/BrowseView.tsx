@@ -1,14 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AmbientBackground } from '@/components/media/AmbientBackground';
-import { CoverArt } from '@/components/media/CoverArt';
 import { GameCard } from '@/components/media/GameCard';
 import { GenreChips } from '@/components/media/GenreChips';
 import { SearchBar } from '@/components/media/SearchBar';
 import { EmptyState } from '@/components/EmptyState';
 import { useGames } from '@/features/games/useGames';
+import { useFavorites } from '@/features/favorites/useFavorites';
+import { useAuthStore } from '@/features/auth/authStore';
 import { ALL_GENRE, GENRES } from '@/types/games';
 import { dataSource } from '@/lib/pb';
+import browseShot from '../../docs/assets/browse.png';
+import detailsShot from '../../docs/assets/details.png';
+import playerShot from '../../docs/assets/player.png';
+
+const DOCS_URL = 'https://github.com/mode777/superflix/blob/main/docs/README.md';
 
 function GridSkeleton() {
   return (
@@ -33,7 +39,10 @@ export default function BrowseView() {
   const [search, setSearch] = useState('');
   const [genre, setGenre] = useState(ALL_GENRE);
   const { games, total, isLoading, isError, refetch } = useGames({ search, genre });
+  const { favoriteIds } = useFavorites();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const featured = games[0] ?? null;
+  const favoriteGames = games.filter((game) => favoriteIds.has(game.id));
 
   return (
     <>
@@ -57,17 +66,39 @@ export default function BrowseView() {
               stay on your machine or in your own PocketBase instance.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById('library')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                className="rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+              >
+                Browse the shelf
+              </button>
+              <a
+                href={DOCS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
+              >
+                Read the docs
+              </a>
               <Link
                 to="/admin"
-                className="rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+                className="rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
               >
                 Import a ROM
               </Link>
               {featured && (
                 <Link
                   to={`/play/${featured.slug}`}
-                  className="rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
                 >
+                  <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+                    play_arrow
+                  </span>
                   Play featured
                 </Link>
               )}
@@ -79,31 +110,50 @@ export default function BrowseView() {
             )}
           </div>
 
-          {featured && (
-            <Link
-              to={`/game/${featured.slug}`}
-              className="group overflow-hidden rounded-2xl border border-white/10 bg-surface-container/60 shadow-2xl transition hover:border-white/20"
-            >
-              <div className="aspect-[4/3] overflow-hidden">
-                <CoverArt
-                  game={featured}
-                  className="transition duration-700 group-hover:scale-[1.04]"
-                />
-              </div>
-              <div className="flex flex-col gap-2 p-5">
-                <span className="text-label-caps uppercase tracking-[0.2em] text-secondary">
-                  Featured
-                </span>
-                <h2 className="text-headline-lg text-on-surface">{featured.title}</h2>
-                <p className="line-clamp-2 text-body-md text-on-surface-variant">
-                  {featured.description}
-                </p>
-              </div>
-            </Link>
-          )}
+          <div className="grid gap-3">
+            <img
+              src={browseShot}
+              alt="Superflix browse grid showing the demo catalog"
+              className="w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
+              loading="lazy"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <img
+                src={detailsShot}
+                alt="Game details page with cover, metadata, and screenshots"
+                className="w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
+                loading="lazy"
+              />
+              <img
+                src={playerShot}
+                alt="Snes9x running the bundled Gothicvania demo in the browser player"
+                className="w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
+                loading="lazy"
+              />
+            </div>
+          </div>
         </section>
 
-        <div className="glass-panel mb-8 flex flex-col gap-3 rounded-2xl p-4 md:flex-row md:items-center md:justify-between">
+        {isAuthenticated && favoriteGames.length > 0 && (
+          <section className="mb-10">
+            <div className="mb-4 flex items-baseline justify-between gap-4">
+              <h2 className="text-headline-lg text-on-surface">My favorites</h2>
+              <span className="text-body-md text-on-surface-variant">
+                {favoriteGames.length} title{favoriteGames.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {favoriteGames.map((favorite) => (
+                <GameCard key={favorite.id} game={favorite} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div
+          id="library"
+          className="glass-panel mb-8 flex scroll-mt-32 flex-col gap-3 rounded-2xl p-4 md:flex-row md:items-center md:justify-between"
+        >
           <GenreChips genres={GENRES} value={genre} onChange={setGenre} />
           <SearchBar value={search} onChange={setSearch} />
         </div>

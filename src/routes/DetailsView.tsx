@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AmbientBackground } from '@/components/media/AmbientBackground';
+import { AttributionPanel } from '@/components/media/AttributionPanel';
 import { CoverArt } from '@/components/media/CoverArt';
 import { MetadataPanel } from '@/components/media/MetadataPanel';
 import { ScreenshotCarousel } from '@/components/media/ScreenshotCarousel';
 import { EmptyState } from '@/components/EmptyState';
+import { useFavorites } from '@/features/favorites/useFavorites';
 import { useGame } from '@/features/games/useGame';
 import type { SnesHeader } from '@/lib/snes/types';
 
@@ -40,6 +42,7 @@ function RomHeaderPanel({ header }: { header: SnesHeader }) {
 export default function DetailsView() {
   const { slug } = useParams<{ slug: string }>();
   const { data: game, isLoading, isError } = useGame(slug);
+  const { isFavorite, toggle } = useFavorites();
 
   useEffect(() => {
     document.title = game ? `${game.title} — Superflix` : 'Superflix — Super Nintendo Catalog';
@@ -154,6 +157,17 @@ export default function DetailsView() {
               >
                 Import another ROM
               </Link>
+              <button
+                type="button"
+                onClick={() => void toggle(game.id)}
+                aria-pressed={isFavorite(game.id)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
+              >
+                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+                  {isFavorite(game.id) ? 'favorite' : 'favorite_border'}
+                </span>
+                {isFavorite(game.id) ? 'Favorited' : 'Favorite'}
+              </button>
             </div>
 
             <div className="glass-panel mt-10 rounded-2xl p-6">
@@ -170,6 +184,8 @@ export default function DetailsView() {
         </section>
 
         {game.header && <RomHeaderPanel header={game.header} />}
+
+        <AttributionPanel />
       </main>
     </>
   );

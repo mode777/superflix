@@ -1,32 +1,66 @@
-import { useCallback, useReducer } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { emulatorService } from '../services';
+import * as saveSync from '../services/saveSync';
 import type { SaveSlot } from '../types';
 
 export function useSaveStates(gameId: string | undefined) {
-  const [, forceRender] = useReducer((value: number) => value + 1, 0);
-  const slots = emulatorService.listSavedSlots(gameId);
+  const [slots, setSlots] = useState<SaveSlot[]>([]);
+  const memorySlots = emulatorService.listSavedSlots(gameId);
 
-  const refresh = useCallback(() => forceRender(), []);
+  const refresh = useCallback(async () => {
+    if (!gameId) {
+      setSlots([]);
+      return;
+    }
+    setSlots(await saveSync.listSlots(gameId));
+  }, [gameId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      if (!gameId) {
+        if (!cancelled) setSlots([]);
+        return;
+      }
+      const stored = await saveSync.listSlots(gameId);
+      if (!cancelled) setSlots(stored);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId]);
 
   const save = useCallback(
     async (slot: SaveSlot) => {
-      await emulatorService.saveState(slot);
-      refresh();
+      if (!gameId) throw new Error('No game is loaded.');
+      const blob = await emulatorService.saveState(slot);
+      await saveSync.saveState(gameId, slot, blob);
+      await refresh();
     },
-    [refresh],
+    [gameId, refresh],
   );
 
-  const load = useCallback(async (slot: SaveSlot) => {
-    await emulatorService.loadState(slot);
-  }, []);
+  const load = useCallback(
+    async (slot: SaveSlot) => {
+      if (!gameId) throw new Error('No game is loaded.');
+      const blob = await saveSync.loadState(gameId, slot);
+      await emulatorService.loadState(slot, blob);
+    },
+    [gameId],
+  );
 
   const remove = useCallback(
-    (slot: SaveSlot) => {
+    async (slot: SaveSlot) => {
+      if (!gameId) return;
       emulatorService.deleteState(slot);
-      refresh();
+      await saveSync.deleteState(gameId, slot);
+      await refresh();
     },
-    [refresh],
+    [gameId, refresh],
   );
 
-  return { slots, save, load, remove };
+  const merged = Array.from(new Set([...slots, ...memorySlots]));
+  return { slots: merged, save, load, remove };
 }
