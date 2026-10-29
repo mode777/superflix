@@ -1,9 +1,15 @@
 import { Nostalgist } from 'nostalgist';
 import type { EmulatorService, LoadRomOptions } from './emulator';
 import { applyEmulatorVolume, effectiveDb, volumeToDb } from './volume';
+import { installPreset, type PresetFileSystem } from '../crt/preset';
 import { SAVE_SLOTS, type EmulatorSettings, type RuntimeState, type SaveSlot } from '../types';
 
 const CORE = 'snes9x';
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 // Self-host the core so the player does not depend on jsDelivr at runtime.
 // Run `npm run core:fetch` before starting the app.
@@ -96,17 +102,29 @@ export class NostalgistEmulatorService implements EmulatorService {
         sram: opts.sram ?? undefined,
         sramType: 'srm',
         runEmulatorManually: true,
+        // The CRT effect is a single-pass GLSL preset applied by the emulator
+        // itself. It has to be in the virtual filesystem before video starts,
+        // so it is written here rather than after launch. See crt/preset.ts.
+        beforeLaunch: (nostalgist) => {
+          installPreset(nostalgist.getEmscriptenFS() as PresetFileSystem, {
+            still: prefersReducedMotion(),
+          });
+        },
         retroarchConfig: {
           audio_volume: volumeToDb(this.settings.volume),
           audio_mute_enable: false,
           savestate_thumbnail_enable: true,
           rewind_enable: true,
-          // First scaling stage is ours: 1:1 pixels, whole-number steps and no
-          // smoothing. CSS then fills the 4:3 stage with the fractional fit.
-          aspect_ratio_index: 21,
-          video_scale_integer: true,
+          // A custom 3:2 viewport fills the 1440x960 effect buffer edge to
+          // edge; the canvas is then fitted to the 4:3 stage, which supplies
+          // the SNES aspect correction.
+          aspect_ratio_index: 20,
+          video_aspect_ratio: '1.500000',
+          video_scale_integer: false,
           video_force_aspect: true,
-          video_smooth: false,
+          // Linear sampling feeds the effect a smooth source, matching the
+          // reference port. At whole-pixel sizes this is a no-op.
+          video_smooth: true,
         },
         onLog: (log) => {
           if (log.level === 'error') console.error(`[snes] ${log.message}`);
@@ -249,7 +267,13 @@ export class NostalgistEmulatorService implements EmulatorService {
   }
 
   setCrt(enabled: boolean): void {
+    if (this.settings.crt === enabled) return;
     this.setSettings({ crt: enabled });
+    // RetroArch swaps the loaded preset for its stock output; the core keeps
+    // running, so save state, SRAM and audio are untouched. The command exists
+    // in RetroArch 1.22 but not in Nostalgist's typed command union.
+    const emulator = this.emulator as unknown as { sendCommand(command: string): void } | null;
+    emulator?.sendCommand('SHADER_TOGGLE');
   }
 
   getSettings(): EmulatorSettings {

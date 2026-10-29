@@ -27,7 +27,7 @@ function createSurface(width: number, height: number) {
   return surface;
 }
 
-function setup(surfaceWidth: number, surfaceHeight: number) {
+function setup(surfaceWidth: number, surfaceHeight: number, crt = false) {
   const surface = createSurface(surfaceWidth, surfaceHeight);
   const stage = document.createElement('div');
   const canvas = document.createElement('canvas');
@@ -35,7 +35,7 @@ function setup(surfaceWidth: number, surfaceHeight: number) {
   const stageRef = { current: stage } as RefObject<HTMLDivElement>;
   const canvasRef = { current: canvas } as RefObject<HTMLCanvasElement>;
 
-  const view = renderHook(() => usePlayerScale(surfaceRef, stageRef, canvasRef));
+  const view = renderHook(() => usePlayerScale(surfaceRef, stageRef, canvasRef, crt));
   return { ...view, surface, stage, canvas };
 }
 
@@ -59,11 +59,6 @@ describe('usePlayerScale', () => {
 
     expect(stage.style.width).toBe('984px');
     expect(stage.style.height).toBe('738px');
-    expect(Number.parseFloat(stage.style.getPropertyValue('--crt-line-pitch'))).toBeCloseTo(
-      738 / 224,
-      5,
-    );
-
     // n = 3: the drawing-buffer box stays 768x672 and is transformed to fill.
     expect(canvas.style.width).toBe('768px');
     expect(canvas.style.height).toBe('672px');
@@ -95,6 +90,18 @@ describe('usePlayerScale', () => {
     expect(stage.style.height).toBe('1080px');
     expect(canvas.style.width).toBe('1024px');
     expect(canvas.style.height).toBe('896px');
+  });
+
+  it('uses the effect\'s fixed buffer and fills the stage while CRT is on', () => {
+    const { stage, canvas } = setup(1312, 738, true);
+
+    expect(stage.style.width).toBe('984px');
+    expect(stage.style.height).toBe('738px');
+    expect(canvas.style.width).toBe('1440px');
+    expect(canvas.style.height).toBe('960px');
+    expect(canvas.style.transform).toBe(`scale(${984 / 1440}, ${738 / 960})`);
+    expect(h.resizeVideo).toHaveBeenCalledTimes(1);
+    expect(h.resizeVideo).toHaveBeenCalledWith(1440, 960);
   });
 
   it('does nothing before the surface has been measured', () => {

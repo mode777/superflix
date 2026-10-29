@@ -19,9 +19,6 @@ export const DISPLAY_ASPECT = 4 / 3;
 /** Upper bound on the integral stage: 8x is 2048x1792. */
 export const MAX_RENDER_SCALE = 8;
 
-/** Fallback scanline period when the stage has not been measured yet. */
-export const DEFAULT_SCANLINE_PITCH = 3;
-
 export interface StageSize {
   width: number;
   height: number;
@@ -60,15 +57,4 @@ export function selectRenderScale(
   );
   const scale = Math.floor(fit);
   return Math.min(MAX_RENDER_SCALE, Math.max(1, scale));
-}
-
-/**
- * On-screen height of one source scanline, used as the CRT overlay's period so
- * the pattern does not beat against the render scale.
- */
-export function scanlinePitch(stageHeight: number, lines = NATIVE_FRAME.height): number {
-  if (!isPositiveFinite(stageHeight) || !isPositiveFinite(lines)) {
-    return DEFAULT_SCANLINE_PITCH;
-  }
-  return stageHeight / lines;
 }

@@ -57,11 +57,13 @@ describe('GameWindow video layout', () => {
     expect(getComputedStyle(canvas).imageRendering).not.toBe('pixelated');
   });
 
-  it('lets the CRT overlay sit over the canvas stage', () => {
+  it('renders the game canvas as the only presentation layer', () => {
     renderWindow({ settings: { crt: true, volume: 50, muted: false } });
 
     const stage = screen.getByTestId('player-stage');
-    expect(stage.querySelector('.crt-overlay')).not.toBeNull();
+    expect(stage.querySelector('canvas')).toBe(screen.getByTestId('player-canvas'));
+    expect(stage.querySelector('.crt-overlay')).toBeNull();
+    expect(stage.querySelectorAll('canvas')).toHaveLength(1);
   });
 });
 

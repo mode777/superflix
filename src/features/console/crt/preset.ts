@@ -1,0 +1,219 @@
+/**
+ * newpixie-crt, WebGL1 / GLSL ES 1.00 edition.
+ *
+ * The reference implementation (psflix's `worker/gl/crt-shader.ts`) is a
+ * four-pass chain. This build of RetroArch runs on a WebGL1 context and its
+ * shader render targets use an unsupported format, so every non-final pass
+ * fails and only a single pass can render. This module therefore ports the
+ * composite pass only:
+ *
+ *   accumulate + blur buffers  ->  the emulator frame, plus a 5-tap blur
+ *                                  sampled inline for the ghost halo
+ *   curvature (0 in the tuned) ->  omitted
+ *   bezel / interference       ->  omitted
+ *
+ * Everything that is a per-pixel function of one frame is kept verbatim, with
+ * the tuned numbers below interpolated into the source so the look lives in one
+ * place. See openspec/changes/player-crt-shader/design.md.
+ */
+
+/** Fixed output buffer. The effect's scanline count follows this height. */
+export const CRT_OUTPUT = { width: 1440, height: 960 } as const;
+
+/** Name of the preset written into the emulator's virtual filesystem. */
+export const CRT_PRESET_NAME = 'newpixie-crt';
+
+/** Shader directory inside the emulator's bundled RetroArch tree. */
+export const SHADER_FS_DIR = '/home/web_user/retroarch/bundle/shaders/shaders_glsl';
+/** RetroArch's config directory, where the global preset reference lives. */
+export const SHADER_CONFIG_DIR = '/home/web_user/retroarch/userdata/config';
+
+/** The slice of the Emscripten FS this module needs. */
+export interface PresetFileSystem {
+  writeFile(path: string, data: string): void;
+  mkdirTree?(path: string): void;
+}
+
+/**
+ * Tuned look (psflix's defaults, minus the terms that needed other passes).
+ * Changing one of these changes the picture: update the spec too.
+ */
+export const CRT_PARAMS = {
+  vignette: 0.35,
+  ghosting: 0.3,
+  scanlineStrength: 1.0,
+  filmicToe: 0.013,
+  filmicShoulder: 5.6,
+  gamma: 1.18,
+  /** Output-space radius of the inline blur used for the ghost halo. */
+  ghostBlur: 4.0,
+} as const;
+
+function f(value: number): string {
+  return value.toFixed(3);
+}
+
+export interface ShaderOptions {
+  /**
+   * Freeze the time-varying terms. Chosen at launch when the user prefers
+   * reduced motion; RetroArch has no runtime uniform override for this.
+   */
+  still?: boolean;
+}
+
+export function buildShaderSource({ still = false }: ShaderOptions = {}): string {
+  return `#ifdef VERTEX
+attribute vec4 VertexCoord;
+attribute vec4 TexCoord;
+uniform mat4 MVPMatrix;
+varying vec2 tex_coord;
+
+void main() {
+  gl_Position = MVPMatrix * VertexCoord;
+  tex_coord = TexCoord.xy;
+}
+#endif
+
+#ifdef FRAGMENT
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+
+varying vec2 tex_coord;
+uniform sampler2D Texture;
+uniform vec2 OutputSize;
+uniform int FrameCount;
+
+#define VIGNETTE ${f(CRT_PARAMS.vignette)}
+#define GHOSTING ${f(CRT_PARAMS.ghosting)}
+#define SCANLINE_STRENGTH ${f(CRT_PARAMS.scanlineStrength)}
+#define FILMIC_TOE ${f(CRT_PARAMS.filmicToe)}
+#define FILMIC_SHOULDER ${f(CRT_PARAMS.filmicShoulder)}
+#define GAMMA ${f(CRT_PARAMS.gamma)}
+#define GHOST_BLUR ${f(CRT_PARAMS.ghostBlur)}
+#define TIME_SCALE ${still ? '0.000' : '1.000'}
+
+float rand(vec2 co) {
+  return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+// Linearised sample with the reference's 1.25 gain.
+vec3 tex(vec2 uv) {
+  return pow(abs(texture2D(Texture, uv).rgb), vec3(2.2)) * vec3(1.25);
+}
+
+// The reference reads a pre-blurred buffer here; sample the frame inline.
+vec3 tex_blurred(vec2 uv) {
+  vec2 d = vec2(GHOST_BLUR) / OutputSize;
+  vec3 sum = tex(uv);
+  sum += tex(uv + vec2(d.x, 0.0));
+  sum += tex(uv - vec2(d.x, 0.0));
+  sum += tex(uv + vec2(0.0, d.y));
+  sum += tex(uv - vec2(0.0, d.y));
+  return sum * 0.2;
+}
+
+void main() {
+  vec2 uv = tex_coord;
+  float time = mod(float(FrameCount) * TIME_SCALE, 640.0);
+
+  // Per-scanline horizontal jitter from the reference (its "bleed" term).
+  float x = sin(gl_FragCoord.y * 1.5) / OutputSize.x * 0.25;
+
+  vec3 col;
+  col.r = tex(vec2(x + uv.x + 0.0009, uv.y + 0.0009)).x + 0.02;
+  col.g = tex(vec2(x + uv.x + 0.0000, uv.y - 0.0011)).y + 0.02;
+  col.b = tex(vec2(x + uv.x - 0.0015, uv.y + 0.0000)).z + 0.02;
+
+  float i = clamp(col.r * 0.299 + col.g * 0.587 + col.b * 0.114, 0.0, 1.0);
+  i = pow(1.0 - pow(i, 2.0), 1.0);
+  i = (1.0 - i) * 0.85 + 0.15;
+
+  float ghs = 0.15 * GHOSTING;
+  vec3 r = tex_blurred(vec2(x - 0.014, -0.027) * 0.85 + 0.007 * vec2(
+            0.35 * sin(1.0 / 7.0 + 15.0 * uv.y + 0.9 * time),
+            0.35 * sin(2.0 / 7.0 + 10.0 * uv.y + 1.37 * time))
+          + vec2(uv.x + 0.001, uv.y + 0.001)) * vec3(0.5, 0.25, 0.25);
+  vec3 g = tex_blurred(vec2(x - 0.019, -0.020) * 0.85 + 0.007 * vec2(
+            0.35 * cos(1.0 / 9.0 + 15.0 * uv.y + 0.5 * time),
+            0.35 * sin(2.0 / 9.0 + 10.0 * uv.y + 1.50 * time))
+          + vec2(uv.x + 0.000, uv.y - 0.002)) * vec3(0.25, 0.5, 0.25);
+  vec3 b = tex_blurred(vec2(x - 0.017, -0.003) * 0.85 + 0.007 * vec2(
+            0.35 * sin(2.0 / 3.0 + 15.0 * uv.y + 0.7 * time),
+            0.35 * cos(2.0 / 3.0 + 10.0 * uv.y + 1.63 * time))
+          + vec2(uv.x - 0.002, uv.y + 0.000)) * vec3(0.25, 0.25, 0.5);
+
+  col += vec3(ghs * (1.0 - 0.299)) * pow(clamp(vec3(3.0) * r, 0.0, 1.0), vec3(2.0)) * vec3(i);
+  col += vec3(ghs * (1.0 - 0.587)) * pow(clamp(vec3(3.0) * g, 0.0, 1.0), vec3(2.0)) * vec3(i);
+  col += vec3(ghs * (1.0 - 0.114)) * pow(clamp(vec3(3.0) * b, 0.0, 1.0), vec3(2.0)) * vec3(i);
+
+  col *= vec3(0.95, 1.05, 0.95);
+  col = clamp(col * 1.3 + 0.75 * col * col + 1.25 * col * col * col * col * col, 0.0, 10.0);
+
+  // No curvature, so the reference's curved coordinates collapse to uv.
+  float vig = (1.0 - 0.99 * VIGNETTE) + 16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+  vig = 1.3 * sqrt(max(vig, 0.0));
+  col *= vig;
+
+  float scans = clamp(
+    1.0 - SCANLINE_STRENGTH * (0.65 - 0.18 * sin(6.0 * time - uv.y * OutputSize.y * 1.5)),
+    0.0, 1.0);
+  col *= pow(scans, 0.9);
+
+  col *= 1.0 - 0.23 * clamp(mod(gl_FragCoord.x, 3.0) / 2.0, 0.0, 1.0);
+
+  vec3 toe = max(vec3(0.0), col - vec3(FILMIC_TOE));
+  col = (toe * (FILMIC_SHOULDER * toe + 0.5)) / (toe * (FILMIC_SHOULDER * toe + 1.7) + 0.06);
+
+  vec2 seed = uv * OutputSize;
+  col -= 0.015 * pow(
+    vec3(rand(seed + time), rand(seed + time * 2.0), rand(seed + time * 3.0)),
+    vec3(1.5));
+
+  col *= 1.0 - 0.004 * (sin(50.0 * time + uv.y * 2.0) * 0.5 + 0.5);
+
+  col = pow(max(col, vec3(0.0)), vec3(1.0 / GAMMA));
+  gl_FragColor = vec4(col, 1.0);
+}
+#endif
+`;
+}
+
+/**
+ * Single-pass preset. `scale_type = viewport` keeps the only pass rendering to
+ * the backbuffer: any other pass would need the render targets this build
+ * cannot create.
+ */
+export function buildPreset(): string {
+  return `shaders = 1
+shader0 = shaders/${CRT_PRESET_NAME}.glsl
+filter_linear0 = false
+`;
+}
+
+/**
+ * Writes the preset into the emulator's filesystem and points the global preset
+ * at it. RetroArch loads `$CONFIG_DIR/global.glslp` when video initialises, so
+ * this has to run before the core starts (Nostalgist's `beforeLaunch`).
+ *
+ * Returns the preset path that was referenced.
+ */
+export function installPreset(
+  fs: PresetFileSystem,
+  options: ShaderOptions = {},
+): string {
+  const presetPath = `${SHADER_FS_DIR}/${CRT_PRESET_NAME}.glslp`;
+  for (const dir of [SHADER_FS_DIR, `${SHADER_FS_DIR}/shaders`, SHADER_CONFIG_DIR]) {
+    try {
+      fs.mkdirTree?.(dir);
+    } catch {
+      /* already present */
+    }
+  }
+  fs.writeFile(`${SHADER_FS_DIR}/shaders/${CRT_PRESET_NAME}.glsl`, buildShaderSource(options));
+  fs.writeFile(presetPath, buildPreset());
+  fs.writeFile(`${SHADER_CONFIG_DIR}/global.glslp`, `#reference ${presetPath}\n`);
+  return presetPath;
+}

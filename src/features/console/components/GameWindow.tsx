@@ -97,7 +97,7 @@ export function GameWindow({
   const [sramOpen, setSramOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  usePlayerScale(containerRef, stageRef, canvasRef);
+  usePlayerScale(containerRef, stageRef, canvasRef, settings.crt);
 
   useEffect(() => {
     const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -135,8 +135,6 @@ export function GameWindow({
             data-testid="player-canvas"
             className="block"
           />
-
-          {settings.crt && <div className="crt-overlay" aria-hidden="true" />}
         </div>
 
         {!hasRom && (

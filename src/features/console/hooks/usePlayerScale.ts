@@ -1,21 +1,23 @@
 import { useLayoutEffect } from 'react';
 import type { RefObject } from 'react';
 import { emulatorService } from '../services';
-import { fitStage, NATIVE_FRAME, scanlinePitch, selectRenderScale } from '../scaling';
+import { CRT_OUTPUT } from '../crt/preset';
+import { fitStage, NATIVE_FRAME, selectRenderScale } from '../scaling';
 
 /**
  * Fits the 4:3 stage inside the player surface and keeps the emulator's
- * drawing buffer on a whole-pixel multiple of the SNES frame.
+ * drawing buffer honest.
  *
- * The canvas's *layout* box is kept at the buffer size because the core sizes
- * its drawing buffer from that box; a CSS transform then performs the smooth
- * fractional fit. Sizes are written straight to the DOM so continuous resizing
- * does not re-render the controls.
+ * With CRT on, the buffer is the effect's fixed output frame (1440x960) and the
+ * canvas simply fills the stage: the shader's scanline count must not depend on
+ * the window. With CRT off, the buffer stays a whole-pixel multiple of the SNES
+ * frame and a CSS transform performs the smooth fractional fit.
  */
 export function usePlayerScale(
   surfaceRef: RefObject<HTMLElement | null>,
   stageRef: RefObject<HTMLElement | null>,
   canvasRef: RefObject<HTMLCanvasElement | null>,
+  crt = true,
 ): void {
   useLayoutEffect(() => {
     const surface = surfaceRef.current;
@@ -35,13 +37,13 @@ export function usePlayerScale(
 
       stage.style.width = `${fitted.width}px`;
       stage.style.height = `${fitted.height}px`;
-      stage.style.setProperty('--crt-line-pitch', `${scanlinePitch(fitted.height)}px`);
 
+      // Emulator's canvas buffer follows the element's CSS box, so the box is
+      // the buffer size and the transform performs the fit.
       const scale = selectRenderScale(fitted.width, fitted.height, window.devicePixelRatio || 1);
-      const width = NATIVE_FRAME.width * scale;
-      const height = NATIVE_FRAME.height * scale;
+      const width = crt ? CRT_OUTPUT.width : NATIVE_FRAME.width * scale;
+      const height = crt ? CRT_OUTPUT.height : NATIVE_FRAME.height * scale;
 
-      // Keep the measured box integral; the transform does the soft remainder.
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       canvas.style.transformOrigin = 'top left';
@@ -106,5 +108,5 @@ export function usePlayerScale(
       document.removeEventListener('fullscreenchange', schedule);
       media?.removeEventListener('change', onDprChange);
     };
-  }, [surfaceRef, stageRef, canvasRef]);
+  }, [surfaceRef, stageRef, canvasRef, crt]);
 }

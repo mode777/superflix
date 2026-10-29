@@ -71,10 +71,16 @@ Games with battery-backed saves expose a **Battery save** menu:
   or fullscreen size changes, so the picture stays even and playback continues.
 - **Hi-res and PAL**: screens that are not 256×224 (512×448 hi-res or 239-line
   PAL) are shown at the nearest whole multiple with black borders rather than
-  being stretched.
-- **CRT scanlines** toggles the CSS scanline overlay. Its pitch follows the
-  displayed source-line height, so there is one scanline per game line at any
-  scale.
+  being stretched. With the CRT effect on, they are presented inside the same
+  256×224 source frame, so detail is reduced but the geometry stays correct.
+- **CRT effect** is on by default and is applied by the emulator itself as a
+  single-pass shader: rolling scanlines, a shadow mask, chroma bleed, faint
+  ghosting, a filmic tonemap, grain and a light vignette, rendered into a fixed
+  1440x960 frame and fitted to the 4:3 window. Window size, fullscreen and
+  display density do not change the look. The **CRT** button switches the
+  effect off to show the raw emulator picture. The effect has no phosphor
+  persistence — quick motion leaves no trail — and browsers without the shader
+  pipeline simply show the raw picture.
 - **Volume** is absolute: 100 is the core's full output, 50 is roughly half
   amplitude (−6 dB), and 0 silences the game. Changes apply immediately and do
   not interrupt playback.

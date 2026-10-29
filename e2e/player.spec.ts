@@ -9,7 +9,7 @@ import type { Page } from '@playwright/test';
 async function expectWholePixelCanvas(page: Page) {
   await expect
     .poll(async () =>
-      page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+      page.getByTestId('player-canvas').evaluate((canvas: HTMLCanvasElement) => {
         const scale = canvas.width / 256;
         return (
           canvas.width > 0 &&
@@ -24,6 +24,23 @@ async function expectWholePixelCanvas(page: Page) {
     .toBe(true);
 }
 
+/**
+ * With CRT on, the canvas is the effect's fixed 1440x960 buffer: the shader is
+ * applied by the emulator, so the canvas fills the stage without a transform.
+ */
+async function expectCrtCanvas(page: Page) {
+  await expect
+    .poll(async () =>
+      page.getByTestId('player-canvas').evaluate((canvas: HTMLCanvasElement) => ({
+        width: canvas.width,
+        height: canvas.height,
+        hasTransform: canvas.style.transform.startsWith('scale('),
+        canvases: canvas.parentElement?.querySelectorAll('canvas').length ?? 0,
+      })),
+    )
+    .toEqual({ width: 1440, height: 960, hasTransform: true, canvases: 1 });
+}
+
 test.describe.serial('player', () => {
   test('plays the demo ROM and round-trips a save state', async ({ page }) => {
     test.slow();
@@ -33,7 +50,7 @@ test.describe.serial('player', () => {
     await page.getByRole('link', { name: /Play in browser/i }).click();
     await expect(page).toHaveURL(/#\/play\/gothicvania/);
 
-    await expect(page.locator('canvas')).toBeVisible();
+    await expect(page.getByTestId('player-canvas')).toBeVisible();
 
     await page.getByRole('button', { name: 'Play', exact: true }).click();
     await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i, {
@@ -41,7 +58,7 @@ test.describe.serial('player', () => {
     });
     await expect(page.getByText(/Could not start the emulator/i)).toHaveCount(0);
 
-    await expectWholePixelCanvas(page);
+    await expectCrtCanvas(page);
 
     await page.getByRole('button', { name: 'Save state', exact: true }).click();
     await expect(page.getByText(/Saved to slot1/i)).toBeVisible();
@@ -66,9 +83,20 @@ test.describe.serial('player', () => {
     await expect(page.getByRole('button', { name: 'Mute', exact: true })).toBeVisible();
     await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
 
-    // Resizing recomputes the whole-pixel buffer without interrupting playback.
+    // Resizing keeps the effect's fixed buffer: its scanline count must not
+    // depend on the window.
     await page.setViewportSize({ width: 900, height: 700 });
+    await expectCrtCanvas(page);
+    await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
+
+    // CRT off returns the canvas to a whole-pixel SNES buffer without a reload.
+    await page.getByRole('button', { name: 'Toggle CRT scanlines' }).click();
     await expectWholePixelCanvas(page);
+    await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
+
+    // ... and back to the effect.
+    await page.getByRole('button', { name: 'Toggle CRT scanlines' }).click();
+    await expectCrtCanvas(page);
     await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
     await expect(page.getByText(/Could not start the emulator/i)).toHaveCount(0);
   });

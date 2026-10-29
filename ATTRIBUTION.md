@@ -38,6 +38,19 @@ data, code, and assets are used at build/runtime:
 - **Nostalgist.js** — <https://github.com/arianrhodsandlot/nostalgist> — MIT.
 - **RetroArch** — <https://www.retroarch.com/> — GPL-3.0.
 
+## CRT shader
+
+- **newpixie CRT** — by **Mattias Gustavsson**, slang adaptation by **hunterk**
+  — dual licensed MIT or public domain.
+  <https://github.com/libretro/slang-shaders/tree/master/crt/shaders/newpixie>
+- **Tuned look and GLSL port** — adapted from `psflix`'s
+  `src/vendor/psxanywhere/emulator/worker/gl/crt-shader.ts`, which ports the
+  newpixie chain to WebGL. This project ships a single-pass GLSL ES 1.00 port
+  of its tuned composite: the emulator's WebGL1 build cannot create the render
+  targets the multi-pass chain needs, so the accumulation and blur passes are
+  replaced by inline sampling. Tuned values are kept.
+- No bezel artwork (`crtframe.png`) is bundled; the frame overlay is disabled.
+
 ## Backend / frontend
 
 - **PocketBase** — <https://pocketbase.io/> — MIT.

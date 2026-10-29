@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitStage, scanlinePitch, selectRenderScale } from './scaling';
+import { fitStage, selectRenderScale } from './scaling';
 
 describe('selectRenderScale', () => {
   it('selects 3x for a 984x738 stage at device pixel ratio 1', () => {
@@ -48,16 +48,5 @@ describe('fitStage', () => {
   it('returns a zero stage for an unmeasured surface', () => {
     expect(fitStage(0, 0)).toEqual({ width: 0, height: 0 });
     expect(fitStage(Number.NaN, 738)).toEqual({ width: 0, height: 0 });
-  });
-});
-
-describe('scanlinePitch', () => {
-  it('matches one source line of a 738px stage', () => {
-    expect(scanlinePitch(738)).toBeCloseTo(738 / 224, 5);
-  });
-
-  it('falls back to 3px when nothing has been measured', () => {
-    expect(scanlinePitch(0)).toBe(3);
-    expect(scanlinePitch(Number.NaN)).toBe(3);
   });
 });

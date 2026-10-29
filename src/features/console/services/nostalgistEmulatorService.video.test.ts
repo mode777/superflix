@@ -102,21 +102,63 @@ describe('NostalgistEmulatorService video sizing', () => {
     expect(h.resize).not.toHaveBeenCalled();
   });
 
-  it('pins the video pipeline to a whole-pixel, unsmoothed first stage', async () => {
+  it('pins the video pipeline so the effect fills the canvas', async () => {
     const service = new NostalgistEmulatorService();
     await boot(service);
 
-    const config = (h.launch.mock.calls.at(-1)?.[0] as { retroarchConfig: Record<string, unknown> })
-      .retroarchConfig;
-
-    expect(config.aspect_ratio_index).toBe(21);
-    expect(config.video_scale_integer).toBe(true);
-    expect(config.video_force_aspect).toBe(true);
-    expect(config.video_smooth).toBe(false);
-
     const options = h.launch.mock.calls.at(-1)?.[0] as {
+      retroarchConfig: Record<string, unknown>;
+      shader?: string;
       style?: { imageRendering?: string };
     };
+    const config = options.retroarchConfig;
+
+    expect(config.aspect_ratio_index).toBe(20);
+    expect(config.video_aspect_ratio).toBe('1.500000');
+    expect(config.video_scale_integer).toBe(false);
+    expect(config.video_force_aspect).toBe(true);
+    expect(config.video_smooth).toBe(true);
     expect(options.style?.imageRendering).toBe('auto');
+  });
+
+  it('installs the CRT preset into the emulator filesystem before launch', async () => {
+    const service = new NostalgistEmulatorService();
+    await boot(service);
+
+    const options = h.launch.mock.calls.at(-1)?.[0] as {
+      beforeLaunch?: (nostalgist: { getEmscriptenFS: () => unknown }) => void;
+    };
+    const files = new Map<string, string>();
+    options.beforeLaunch?.({
+      getEmscriptenFS: () => ({
+        mkdirTree: () => {},
+        writeFile: (path: string, data: string) => files.set(path, data),
+      }),
+    });
+
+    const shaderDir = '/home/web_user/retroarch/bundle/shaders/shaders_glsl';
+    expect(files.get(`${shaderDir}/newpixie-crt.glslp`)).toContain('shaders = 1');
+    expect(files.get(`${shaderDir}/shaders/newpixie-crt.glsl`)).toContain('#ifdef FRAGMENT');
+    expect(files.get('/home/web_user/retroarch/userdata/config/global.glslp')).toBe(
+      `#reference ${shaderDir}/newpixie-crt.glslp\n`,
+    );
+  });
+
+  it('toggles the effect with RetroArch command instead of relaunching', async () => {
+    const service = new NostalgistEmulatorService();
+    await boot(service);
+    const launches = h.launch.mock.calls.length;
+
+    service.setCrt(false);
+    expect(service.getSettings().crt).toBe(false);
+    expect(h.emulator.sendCommand).toHaveBeenCalledWith('SHADER_TOGGLE');
+
+    service.setCrt(false);
+    expect(h.emulator.sendCommand).toHaveBeenCalledTimes(1);
+
+    service.setCrt(true);
+    expect(service.getSettings().crt).toBe(true);
+    expect(h.emulator.sendCommand).toHaveBeenCalledTimes(2);
+    expect(h.launch).toHaveBeenCalledTimes(launches);
   });
 });
