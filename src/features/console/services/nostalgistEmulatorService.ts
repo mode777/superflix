@@ -1,5 +1,6 @@
 import { Nostalgist } from 'nostalgist';
 import type { EmulatorService, LoadRomOptions } from './emulator';
+import { applyEmulatorVolume, effectiveDb, volumeToDb } from './volume';
 import { SAVE_SLOTS, type EmulatorSettings, type RuntimeState, type SaveSlot } from '../types';
 
 const CORE = 'snes9x';
@@ -16,11 +17,6 @@ if (typeof document !== 'undefined') {
   });
 }
 
-function volumeToDb(volume: number): number {
-  if (volume <= 0) return -80;
-  return Math.max(-80, 20 * Math.log10(volume / 100));
-}
-
 /**
  * Nostalgist/RetroArch-backed SNES player. Deliberately much smaller than the
  * PSxAnywhere facade: ROMs are small, there is no BIOS, no disc, no memcard,
@@ -29,11 +25,15 @@ function volumeToDb(volume: number): number {
 export class NostalgistEmulatorService implements EmulatorService {
   private canvas: HTMLCanvasElement | null = null;
   private emulator: Nostalgist | null = null;
+  /** Drawing-buffer size requested by the layout, kept across ROM loads. */
+  private videoSize: { width: number; height: number } | null = null;
   private currentRom: { input: File | string; gameId: string; fileName: string } | null = null;
   private runtime: RuntimeState = { status: 'idle', gameId: null, elapsedMs: 0, error: null };
   private readonly runtimeListeners = new Set<() => void>();
   private readonly settingsListeners = new Set<() => void>();
   private settings: EmulatorSettings = { crt: true, volume: 80, muted: false };
+  /** dB currently written to the core, or the launch baseline before it starts. */
+  private appliedDb = volumeToDb(this.settings.volume);
   /** Save states keyed by `${gameId}:${slot}`. */
   private readonly states = new Map<string, Blob>();
   private sram: Blob | null = null;
@@ -44,6 +44,20 @@ export class NostalgistEmulatorService implements EmulatorService {
     if (this.canvas === canvas) return;
     this.canvas = canvas;
     if (this.emulator) this.destroy();
+  }
+
+  resizeVideo(width: number, height: number): void {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+    const next = { width: Math.round(width), height: Math.round(height) };
+    if (
+      this.videoSize &&
+      this.videoSize.width === next.width &&
+      this.videoSize.height === next.height
+    ) {
+      return;
+    }
+    this.videoSize = next;
+    this.emulator?.resize(next);
   }
 
   async loadRom(
@@ -58,10 +72,7 @@ export class NostalgistEmulatorService implements EmulatorService {
 
     let input: File | string;
     if (typeof rom === 'string') {
-      input =
-        typeof document !== 'undefined'
-          ? new URL(rom, document.baseURI).toString()
-          : rom;
+      input = typeof document !== 'undefined' ? new URL(rom, document.baseURI).toString() : rom;
     } else if (rom instanceof File) {
       input = rom;
     } else {
@@ -69,7 +80,8 @@ export class NostalgistEmulatorService implements EmulatorService {
       input = new File([rom as BlobPart], name, { type: 'application/octet-stream' });
     }
 
-    const fileName = typeof input === 'string' ? input.split('/').pop() ?? 'game.sfc' : input.name;
+    const fileName =
+      typeof input === 'string' ? (input.split('/').pop() ?? 'game.sfc') : input.name;
     this.currentRom = { input, gameId: opts.gameId ?? '', fileName };
 
     try {
@@ -77,14 +89,24 @@ export class NostalgistEmulatorService implements EmulatorService {
         core: CORE,
         rom: input,
         element: this.canvas,
+        // Nostalgist defaults the canvas to `image-rendering: pixelated`; the
+        // fractional fit after the integer stage must stay smooth.
+        style: { imageRendering: 'auto' },
+        ...(this.videoSize ? { size: this.videoSize } : {}),
         sram: opts.sram ?? undefined,
         sramType: 'srm',
         runEmulatorManually: true,
         retroarchConfig: {
           audio_volume: volumeToDb(this.settings.volume),
-          audio_mute_enable: this.settings.muted,
+          audio_mute_enable: false,
           savestate_thumbnail_enable: true,
           rewind_enable: true,
+          // First scaling stage is ours: 1:1 pixels, whole-number steps and no
+          // smoothing. CSS then fills the 4:3 stage with the fractional fit.
+          aspect_ratio_index: 21,
+          video_scale_integer: true,
+          video_force_aspect: true,
+          video_smooth: false,
         },
         onLog: (log) => {
           if (log.level === 'error') console.error(`[snes] ${log.message}`);
@@ -92,6 +114,10 @@ export class NostalgistEmulatorService implements EmulatorService {
       });
 
       if (opts.sram) this.sram = opts.sram;
+      // Nostalgist's postRun sizes the canvas to the element (or launch size);
+      // re-assert the layout's whole-pixel size after the core is running.
+      if (this.videoSize) this.emulator.resize(this.videoSize);
+      this.applyVolume();
       this.startedAt = performance.now();
       this.setRuntime({ status: 'paused', gameId: opts.gameId ?? null, elapsedMs: 0 });
     } catch (error) {
@@ -110,6 +136,7 @@ export class NostalgistEmulatorService implements EmulatorService {
     } else if (status === 'paused') {
       this.emulator.resume();
     }
+    this.applyVolume();
     this.startedAt = performance.now() - this.runtime.elapsedMs;
     this.setRuntime({ status: 'playing', error: null });
     this.startTimer();
@@ -128,6 +155,7 @@ export class NostalgistEmulatorService implements EmulatorService {
   async reset(): Promise<void> {
     if (!this.emulator) return;
     this.emulator.restart();
+    this.applyVolume();
     this.startedAt = performance.now();
     this.setRuntime({ status: 'playing', elapsedMs: 0, error: null });
     this.startTimer();
@@ -145,6 +173,7 @@ export class NostalgistEmulatorService implements EmulatorService {
     }
     this.currentRom = null;
     this.sram = null;
+    this.appliedDb = volumeToDb(this.settings.volume);
     this.setRuntime({ status: 'idle', gameId: null, elapsedMs: 0, error: null });
   }
 
@@ -206,18 +235,13 @@ export class NostalgistEmulatorService implements EmulatorService {
 
   setVolume(volume: number): void {
     const next = Math.min(100, Math.max(0, Math.round(volume)));
-    if (this.emulator && next !== this.settings.volume) {
-      const delta = next - this.settings.volume;
-      const command = delta > 0 ? 'VOLUME_UP' : 'VOLUME_DOWN';
-      const steps = Math.min(20, Math.max(1, Math.round(Math.abs(delta) / 5)));
-      for (let i = 0; i < steps; i += 1) this.emulator.sendCommand(command);
-    }
     this.setSettings({ volume: next });
+    this.applyVolume();
   }
 
   setMuted(muted: boolean): void {
-    if (this.emulator && muted !== this.settings.muted) this.emulator.sendCommand('MUTE');
     this.setSettings({ muted });
+    this.applyVolume();
   }
 
   toggleMute(): void {
@@ -265,5 +289,11 @@ export class NostalgistEmulatorService implements EmulatorService {
   private setSettings(patch: Partial<EmulatorSettings>): void {
     this.settings = { ...this.settings, ...patch };
     for (const listener of this.settingsListeners) listener();
+  }
+
+  private applyVolume(): void {
+    if (!this.emulator) return;
+    const target = effectiveDb(this.settings.volume, this.settings.muted);
+    this.appliedDb = applyEmulatorVolume(this.emulator, target, this.appliedDb);
   }
 }

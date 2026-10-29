@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { SAVE_SLOTS, type EmulatorSettings, type RuntimeState, type SaveSlot } from '../types';
 import type { SyncStatus } from '../services/syncStore';
+import { usePlayerScale } from '../hooks/usePlayerScale';
 
 interface GameWindowProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -89,11 +90,14 @@ export function GameWindow({
   onPickRom,
 }: GameWindowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const romInputRef = useRef<HTMLInputElement>(null);
   const sramInputRef = useRef<HTMLInputElement>(null);
   const [slot, setSlot] = useState<SaveSlot>('slot1');
   const [sramOpen, setSramOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  usePlayerScale(containerRef, stageRef, canvasRef);
 
   useEffect(() => {
     const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -120,21 +124,27 @@ export function GameWindow({
     <div className="glass-panel overflow-hidden rounded-2xl">
       <div
         ref={containerRef}
-        className="relative aspect-video w-full bg-black"
+        data-testid="player-surface"
+        className="player-surface relative mx-auto aspect-[4/3] w-full max-w-[calc(72vh*4/3)] bg-black"
         onDoubleClick={toggleFullscreen}
       >
-        <canvas
-          ref={canvasRef}
-          aria-label={`${title} game screen`}
-          className="h-full w-full"
-          style={{ imageRendering: 'pixelated' }}
-        />
+        <div ref={stageRef} data-testid="player-stage" className="player-stage">
+          <canvas
+            ref={canvasRef}
+            aria-label={`${title} game screen`}
+            data-testid="player-canvas"
+            className="block"
+          />
 
-        {settings.crt && <div className="crt-overlay" aria-hidden="true" />}
+          {settings.crt && <div className="crt-overlay" aria-hidden="true" />}
+        </div>
 
         {!hasRom && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/75 p-6 text-center">
-            <span className="material-symbols-outlined text-[44px] text-primary/80" aria-hidden="true">
+            <span
+              className="material-symbols-outlined text-[44px] text-primary/80"
+              aria-hidden="true"
+            >
               sports_esports
             </span>
             <h2 className="text-headline-lg text-on-surface">Attach a ROM to play</h2>
@@ -202,7 +212,12 @@ export function GameWindow({
               {syncStatus === 'syncing' ? 'Syncing…' : syncStatus}
             </span>
           )}
-          <span className="rounded-full bg-black/50 px-2.5 py-1 text-label-caps uppercase tracking-wider text-white/80 backdrop-blur" data-testid="runtime-status" role="status" aria-live="polite">
+          <span
+            className="rounded-full bg-black/50 px-2.5 py-1 text-label-caps uppercase tracking-wider text-white/80 backdrop-blur"
+            data-testid="runtime-status"
+            role="status"
+            aria-live="polite"
+          >
             {runtime.status === 'playing' ? 'Live' : runtime.status}
           </span>
           <ControlButton

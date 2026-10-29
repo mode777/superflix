@@ -13,6 +13,8 @@ export interface LoadRomOptions {
  */
 export interface EmulatorService {
   attachCanvas(canvas: HTMLCanvasElement): Promise<void>;
+  /** Size the drawing buffer, e.g. `n * 256` by `n * 224`. */
+  resizeVideo(width: number, height: number): void;
   loadRom(
     rom: File | Blob | ArrayBuffer | Uint8Array | string,
     opts?: LoadRomOptions,

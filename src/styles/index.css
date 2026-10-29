@@ -110,6 +110,20 @@
   }
 }
 
+.player-surface:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+}
+
+.player-stage {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
 .crt-overlay {
   position: absolute;
   inset: 0;
@@ -121,7 +135,7 @@
       rgba(0, 0, 0, 0.18) 0px,
       rgba(0, 0, 0, 0.18) 1px,
       transparent 1px,
-      transparent 3px
+      transparent var(--crt-line-pitch, 3px)
     ),
     radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
   mix-blend-mode: multiply;
