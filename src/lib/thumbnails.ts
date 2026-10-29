@@ -1,4 +1,12 @@
-export const LIBRETRO_THUMBNAIL_BASE = 'https://thumbnails.libretro.com';
+/**
+ * jsDelivr mirror of the libretro-thumbnails GitHub repository. The primary
+ * host (thumbnails.libretro.com) sends no CORS headers, so browser fetches
+ * fail; this mirror serves the identical files with `access-control-allow-origin: *`.
+ * raw.githubusercontent.com (same repository) is a verified backup mirror.
+ */
+export const LIBRETRO_THUMBNAIL_BASE =
+  'https://cdn.jsdelivr.net/gh/libretro-thumbnails/Nintendo_-_Super_Nintendo_Entertainment_System@master';
+
 export const LIBRETRO_THUMBNAIL_SYSTEM = 'Nintendo - Super Nintendo Entertainment System';
 
 export type ArtworkKind = 'boxart' | 'snap' | 'title';
@@ -19,7 +27,7 @@ export function thumbnailUrl(
   base: string = LIBRETRO_THUMBNAIL_BASE,
 ): string {
   const encoded = encodeURIComponent(noIntroName).replace(/'/g, '%27');
-  return `${base.replace(/\/$/, '')}/${encodeURIComponent(LIBRETRO_THUMBNAIL_SYSTEM)}/${KIND_DIRECTORIES[kind]}/${encoded}.png`;
+  return `${base.replace(/\/$/, '')}/${KIND_DIRECTORIES[kind]}/${encoded}.png`;
 }
 
 /** A filesystem-safe stem for uploaded image names. */

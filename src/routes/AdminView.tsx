@@ -14,6 +14,7 @@ import { useRomStore } from '@/features/console/romStore';
 import { useAdminAuthStore } from '@/admin/lib/authStore';
 import { adminAuth } from '@/admin/lib/pb-auth';
 import { precheckImport, createCatalogRecord, attachVariant, buildCatalogDraft } from '@/admin/lib/importer';
+import { describeEnrichment } from '@/admin/metadata/enrich';
 import { cleanDatName, deriveRegion } from '@/features/games/slug';
 import type { Game } from '@/types/games';
 
@@ -226,12 +227,14 @@ export default function AdminView() {
       }
 
       setImportState({ status: 'uploading', progress: 0 });
-      const { game } = await createCatalogRecord(result, file, (progress) =>
+      const { game, enrichment } = await createCatalogRecord(result, file, (progress) =>
         setImportState({ status: 'uploading', progress }),
       );
       setImportState({ status: 'done', slug: game.slug, title: game.title });
       void queryClient.invalidateQueries({ queryKey: ['games'] });
-      showToast(`Added ${game.title} to the catalog.`, { kind: 'success' });
+      showToast(`Added ${game.title} to the catalog — ${describeEnrichment(enrichment)}.`, {
+        kind: 'success',
+      });
     } catch (err) {
       setImportState({
         status: 'error',

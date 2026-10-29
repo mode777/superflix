@@ -30,8 +30,10 @@ Drop a `.sfc`, `.smc`, `.fig`, `.swc`, or `.bin` file on the dropzone (or use
 - a `games` record is created with the cleaned title, slug, region, hashes,
   size, parsed header, and enrichment metadata,
 - a primary `roms` record is created for the same image,
-- boxart/screenshots are fetched from libretro-thumbnails when the exact
-  No-Intro name exists. Artwork failure never blocks the import.
+- the game is enriched from **snes-dataset** (exact CRC32 lookup): description,
+  genre, developer, publisher, region-appropriate release date, players, box
+  art, and a screenshot are stored when the game is covered. libretro-thumbnails
+  fills any remaining artwork gaps. Enrichment failure never blocks the import.
 
 Upload progress is shown while the file transfers.
 
@@ -53,9 +55,9 @@ The **Catalog** tab lists every game with region, CRC32, and size.
   and header.
 - **Delete** removes the game and its ROM variants after confirmation.
 - **Replace cover** uploads artwork manually; provenance switches to `manual`
-  and future artwork refreshes keep that cover.
-- **Refresh artwork** re-fetches screenshots/provenance from libretro-thumbnails
-  (the cover is skipped for manual overrides).
+  and future syncs keep that cover.
+- **Sync from dataset** re-runs enrichment against snes-dataset: metadata
+  fields and images are refreshed (the cover is skipped for manual overrides).
 
 Imported records are normal PocketBase rows, so they can also be managed via
 the PocketBase admin UI or API.

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminClient } from '@/admin/lib/pb';
 import { replaceGameRom } from '@/admin/lib/importer';
-import { applyArtwork, uploadManualCover } from '@/admin/metadata/artwork';
+import { describeEnrichment, enrichGame } from '@/admin/metadata/enrich';
+import { uploadManualCover } from '@/admin/metadata/artwork';
+import type { Region } from '@/types/games';
 import { Dialog } from '@/components/Dialog';
 import { formatBytes } from '@/lib/format';
 import { showToast } from '@/lib/toast';
@@ -119,18 +121,25 @@ function GameEditor({
     }
   };
 
-  const refreshArtwork = async () => {
-    const name = str(record.metadata_id) || str(record.title);
-    if (!name) return;
+  const syncFromDataset = async () => {
     setRefreshing(true);
     try {
-      const applied = await applyArtwork(str(record.id), name, {
-        skipCover: str(record.metadata_source) === 'manual',
+      const result = await enrichGame({
+        id: str(record.id),
+        crc32: str(record.rom_crc32) || undefined,
+        title: str(record.title),
+        region: (str(record.region) || 'NTSC-U') as Region,
+        // A slug recorded by a previous sync skips resolution; older records
+        // may hold a No-Intro name here, which the dataset lookup treats as a
+        // stale hint and falls through to the checksum.
+        metadataId: str(record.metadata_id) || undefined,
+        manualCover: str(record.metadata_source) === 'manual',
       });
-      showToast(applied ? 'Artwork refreshed.' : 'No artwork found for this title.', {
-        kind: applied ? 'success' : 'info',
+      const changed = result.resolved && (result.metadata || result.cover || result.screenshots > 0);
+      showToast(`Dataset sync: ${describeEnrichment(result)}.`, {
+        kind: changed ? 'success' : 'info',
       });
-      if (applied) onSaved();
+      if (changed) onSaved();
     } finally {
       setRefreshing(false);
     }
@@ -275,11 +284,11 @@ function GameEditor({
 
         <button
           type="button"
-          onClick={() => void refreshArtwork()}
+          onClick={() => void syncFromDataset()}
           disabled={refreshing}
           className="rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-body-md font-semibold text-on-surface transition hover:border-white/25 disabled:opacity-50"
         >
-          {refreshing ? 'Refreshing…' : 'Refresh artwork'}
+          {refreshing ? 'Syncing…' : 'Sync from dataset'}
         </button>
 
         {replacing && (

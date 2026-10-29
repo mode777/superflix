@@ -31,8 +31,10 @@ vi.mock('./upload', async (importOriginal) => {
   };
 });
 
-const applyArtwork = vi.fn(async () => false);
-vi.mock('../metadata/artwork', () => ({ applyArtwork }));
+const enrichGame = vi.fn(
+  async () => ({ resolved: false, metadata: false, cover: false, screenshots: 0 }),
+);
+vi.mock('../metadata/enrich', () => ({ enrichGame }));
 
 const {
   attachVariant,
@@ -222,7 +224,14 @@ describe('createCatalogRecord', () => {
       is_primary: true,
       header: JSON.stringify(identified.header),
     });
-    expect(applyArtwork).toHaveBeenCalledWith('g1', 'Super Mario World (USA)');
+    expect(enrichGame).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'g1',
+        crc32: 'B19ED489',
+        title: 'Super Mario World',
+        noIntroName: 'Super Mario World (USA)',
+      }),
+    );
   });
 
   it('stores the headerless image for copier-headered files', async () => {

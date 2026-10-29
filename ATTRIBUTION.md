@@ -18,9 +18,18 @@ data, code, and assets are used at build/runtime:
 - **libretro-database** — mirror of No-Intro and the libretro developer,
   publisher, genre, releaseyear, and maxusers DATs.
   <https://github.com/libretro/libretro-database> — **CC-BY-SA-4.0**.
+- **snes-dataset** — enrichment source for descriptions, per-region release
+  dates, box art, and screenshots (resolved by CRC32 at import/sync time and
+  cached in PocketBase; never hotlinked).
+  <https://github.com/mode777/snes-dataset> — metadata **CC0**; compiled from
+  the Kaggle SNES datasets by sergenkaraoglan (**CC0**) and thedevastator,
+  Wikipedia-derived release tables, **OpenVGDB** v29
+  (<https://github.com/OpenVGDB/OpenVGDB>), and **opengamedb**
+  (<https://github.com/karlforshaw/opengamedb>).
 - **libretro-thumbnails** — optional box art/screenshot source. Artwork is
   downloaded at import time, downscaled, and cached in PocketBase; it is never
-  hotlinked. <https://github.com/libretro-thumbnails> — images remain the
+  hotlinked. <https://github.com/libretro-thumbnails> — images (including the
+  `Named_Snaps` screenshots redistributed by snes-dataset) remain the
   property of their respective owners and are shown for identification.
 
 ## Emulator

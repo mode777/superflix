@@ -12,7 +12,7 @@ import type { RomIdentification, SnesHeader } from '@/lib/snes/types';
 import type { Region } from '@/types/games';
 import { adminClient } from './pb';
 import { updateRecord, uploadRecord, type MultipartValue, type UploadProgress } from './upload';
-import { applyArtwork } from '../metadata/artwork';
+import { enrichGame, type EnrichmentResult } from '../metadata/enrich';
 
 export interface CatalogGameRecord {
   id: string;
@@ -174,7 +174,7 @@ export async function createCatalogRecord(
   result: RomIdentification,
   file: File,
   onProgress?: UploadProgress,
-): Promise<{ game: CatalogGameRecord }> {
+): Promise<{ game: CatalogGameRecord; enrichment: EnrichmentResult }> {
   const draft = buildCatalogDraft(result, file.name);
   const normalized = normalizedFile(new Uint8Array(await file.arrayBuffer()), draft.slug);
 
@@ -188,10 +188,16 @@ export async function createCatalogRecord(
 
   await adminClient.collection('roms').create(toRomFields(draft, game.id, true));
 
-  // Artwork is best-effort: failures never fail the import.
-  await applyArtwork(game.id, result.match?.name);
+  // Enrichment is best-effort: the import never fails because of it.
+  const enrichment = await enrichGame({
+    id: game.id,
+    crc32: draft.crc32,
+    title: draft.title,
+    region: draft.region,
+    noIntroName: result.match?.name,
+  });
 
-  return { game };
+  return { game, enrichment };
 }
 
 /** Attach an additional regional/revision ROM to an existing game. */

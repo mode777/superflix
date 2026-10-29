@@ -30,6 +30,37 @@ export function AttributionPanel() {
           (CC-BY-SA-4.0).
         </p>
         <p>
+          Descriptions, release dates, and box art are enriched from{' '}
+          <a
+            href="https://github.com/mode777/snes-dataset"
+            className="underline underline-offset-2 hover:text-on-surface"
+            target="_blank"
+            rel="noreferrer"
+          >
+            snes-dataset
+          </a>{' '}
+          (CC0 metadata), which compiles the Kaggle SNES datasets by sergenkaraoglan (CC0),
+          Wikipedia-derived release tables,{' '}
+          <a
+            href="https://github.com/OpenVGDB/OpenVGDB"
+            className="underline underline-offset-2 hover:text-on-surface"
+            target="_blank"
+            rel="noreferrer"
+          >
+            OpenVGDB
+          </a>
+          , and{' '}
+          <a
+            href="https://github.com/karlforshaw/opengamedb"
+            className="underline underline-offset-2 hover:text-on-surface"
+            target="_blank"
+            rel="noreferrer"
+          >
+            opengamedb
+          </a>
+          .
+        </p>
+        <p>
           Boxart, title screens, and in-game screenshots come from{' '}
           <a
             href="https://github.com/libretro-thumbnails/libretro-thumbnails"

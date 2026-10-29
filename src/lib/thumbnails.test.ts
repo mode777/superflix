@@ -1,11 +1,17 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { imageNameStem, thumbnailUrl } from './thumbnails';
+import { LIBRETRO_THUMBNAIL_BASE, imageNameStem, thumbnailUrl } from './thumbnails';
 
 describe('thumbnailUrl', () => {
+  it('defaults to the CORS-open jsDelivr mirror', () => {
+    expect(LIBRETRO_THUMBNAIL_BASE).toBe(
+      'https://cdn.jsdelivr.net/gh/libretro-thumbnails/Nintendo_-_Super_Nintendo_Entertainment_System@master',
+    );
+  });
+
   it('builds exact-name libretro-thumbnails URLs', () => {
     expect(thumbnailUrl('Super Mario World (USA)', 'boxart')).toBe(
-      'https://thumbnails.libretro.com/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/Named_Boxarts/Super%20Mario%20World%20(USA).png',
+      'https://cdn.jsdelivr.net/gh/libretro-thumbnails/Nintendo_-_Super_Nintendo_Entertainment_System@master/Named_Boxarts/Super%20Mario%20World%20(USA).png',
     );
   });
 
@@ -22,8 +28,8 @@ describe('thumbnailUrl', () => {
   });
 
   it('honours a custom base URL', () => {
-    expect(thumbnailUrl('Game', 'boxart', 'https://mirror.test/')).toMatch(
-      /^https:\/\/mirror\.test\/Nintendo/,
+    expect(thumbnailUrl('Game', 'boxart', 'https://mirror.test/')).toBe(
+      'https://mirror.test/Named_Boxarts/Game.png',
     );
   });
 });
