@@ -42,7 +42,7 @@
 
 - [x] 7.1 Set the new defaults (100% scanlines, 30% H blur, 15% V blur, 40% vignette, 30% ghosting) in `CRT_PARAMS`/`DEFAULT_CRT_OVERRIDES`, rename the reset action to "Reset to defaults", update the spec/docs, and verify unit tests
 - [x] 7.2 Run typecheck, lint, unit tests, build and the e2e suite, and capture the new default on the verification box
-- [ ] 7.3 Publish v0.8.2 (version bump, commit, tag) and verify CI, release and Flux
+- [x] 7.3 Publish v0.8.2 (version bump, commit, tag) and verify CI, release and Flux
 
 ## Workflow follow-up
 
