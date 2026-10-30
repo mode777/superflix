@@ -10,14 +10,14 @@ import {
 describe('CRT reference parameters', () => {
   it('pins the tuned look', () => {
     expect(CRT_PARAMS).toEqual({
-      vignette: 0.35,
+      vignette: 0.4,
       ghosting: 0.3,
       scanlineStrength: 1.0,
       filmicToe: 0.013,
       filmicShoulder: 5.6,
       gamma: 1.18,
-      blurX: 6.0,
-      blurY: 2.5,
+      blurX: 3.6,
+      blurY: 1.8,
     });
   });
 
@@ -41,14 +41,14 @@ describe('buildShaderSource', () => {
 
   it('bakes the tuned values into the source', () => {
     const source = buildShaderSource();
-    expect(source).toContain('#define VIGNETTE 0.350');
+    expect(source).toContain('#define VIGNETTE 0.400');
     expect(source).toContain('#define GHOSTING 0.300');
     expect(source).toContain('#define SCANLINE_STRENGTH 1.000');
     expect(source).toContain('#define FILMIC_TOE 0.013');
     expect(source).toContain('#define FILMIC_SHOULDER 5.600');
     expect(source).toContain('#define GAMMA 1.180');
-    expect(source).toContain('#define BLUR_X 6.000');
-    expect(source).toContain('#define BLUR_Y 2.500');
+    expect(source).toContain('#define BLUR_X 3.600');
+    expect(source).toContain('#define BLUR_Y 1.800');
     expect(source).toContain('#define FRAME_WIDTH 1440.000');
     expect(source).toContain('#define FRAME_HEIGHT 960.000');
   });

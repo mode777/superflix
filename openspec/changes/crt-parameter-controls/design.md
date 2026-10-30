@@ -31,7 +31,7 @@ fallback but the Emscripten memory FS may not deliver native watch events.
 - Five user-facing controls: scanline strength, horizontal blur, vertical blur,
   vignette and ghosting, with the reference values as defaults.
 - Changes apply to a running game without restarting it.
-- Per-browser persistence, validation/clamping, and a reset to the reference.
+- Per-browser persistence, validation/clamping, and a reset to the defaults.
 - Keep the service boundary: the UI never talks to RetroArch, and the shader
   builder stays pure and testable.
 - Keep the non-exposed terms fixed and the panel keyboard accessible.
@@ -55,8 +55,8 @@ blurX = hBlur * 12.0
 blurY = vBlur * 12.0
 ```
 
-- Default `hBlur = 0.5` gives the reference `blurX = 6`; default
-  `vBlur = 2.5 / 12` (about 0.2083) gives `blurY = 2.5`.
+- Default `hBlur = 0.3` gives `blurX = 3.6`; default `vBlur = 0.15`
+  gives `blurY = 1.8`. The default vignette is 0.4 and ghosting 0.3.
 - The axes are independent, so the user can make the vertical radius larger
   than the horizontal. The reference default remains horizontal-dominant, and
   the `Anisotropic beam blur` delta now explicitly permits an override.
@@ -135,7 +135,7 @@ not to.
 
 Add a "Tune CRT" control next to the existing TV toggle. It opens a small
 popover, following the `Battery save` pattern, with five native range inputs,
-a live percentage label each, a "Reset to reference" button and a short
+a live percentage label each, a "Reset to defaults" button and a short
 caption. The TV button remains the on/off toggle; the panel is a separate
 button so the two actions are not confused.
 

@@ -16,12 +16,12 @@ describe('CrtControls', () => {
     );
     expect(
       (screen.getByRole('slider', { name: 'Horizontal blur' }) as HTMLInputElement).value,
-    ).toBe('50');
+    ).toBe('30');
     expect(
       (screen.getByRole('slider', { name: 'Vertical blur' }) as HTMLInputElement).value,
-    ).toBe('21');
+    ).toBe('15');
     expect((screen.getByRole('slider', { name: 'Vignette' }) as HTMLInputElement).value).toBe(
-      '35',
+      '40',
     );
     expect((screen.getByRole('slider', { name: 'Ghosting' }) as HTMLInputElement).value).toBe(
       '30',
@@ -44,7 +44,7 @@ describe('CrtControls', () => {
 
   it('reports reset', () => {
     const { onReset } = renderControls();
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to reference' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 });

@@ -87,10 +87,10 @@ Games with battery-backed saves expose a **Battery save** menu:
   phosphor persistence — quick motion leaves no trail — and browsers without
   the shader pipeline simply show the raw picture.
 - **Tune CRT** opens five sliders — scanlines, horizontal blur, vertical blur,
-  vignette and ghosting — with the reference values as defaults (100% scanlines,
-  50% horizontal blur, 21% vertical blur, 35% vignette, 30% ghosting). The two
+  vignette and ghosting — with the tuned defaults (100% scanlines,
+  30% horizontal blur, 15% vertical blur, 40% vignette, 30% ghosting). The two
   blur axes are independent. Changes apply to a running game, persist in this
-  browser, and **Reset to reference** restores the defaults.
+  browser, and **Reset to defaults** restores the defaults.
 - **Volume** is absolute: 100 is the core's full output, 50 is roughly half
   amplitude (−6 dB), and 0 silences the game. Changes apply immediately and do
   not interrupt playback.

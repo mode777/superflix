@@ -115,7 +115,7 @@ describe('GameWindow CRT controls', () => {
     fireEvent.pointerUp(slider);
     expect(onCrtParams).toHaveBeenCalledWith({ scanlineStrength: 0.4 });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to reference' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to defaults' }));
     expect(onResetCrtParams).toHaveBeenCalledTimes(1);
   });
 

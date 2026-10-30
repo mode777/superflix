@@ -147,7 +147,7 @@ describe('NostalgistEmulatorService video sizing', () => {
     const glsl = files.get(`${SHADER_DIR}/shaders/newpixie-crt.glsl`);
     expect(glsl).toContain('#ifdef FRAGMENT');
     expect(glsl).toContain('#define SCANLINE_STRENGTH 1.000');
-    expect(glsl).toContain('#define BLUR_X 6.000');
+    expect(glsl).toContain('#define BLUR_X 3.600');
     expect(files.get('/home/web_user/retroarch/userdata/config/global.glslp')).toBe(
       `#reference ${SHADER_DIR}/newpixie-crt.glslp\n`,
     );
@@ -184,7 +184,7 @@ describe('NostalgistEmulatorService CRT parameters', () => {
 
     expect(glsl).toContain('#define SCANLINE_STRENGTH 0.400');
     expect(glsl).toContain('#define BLUR_X 3.000');
-    expect(glsl).toContain('#define BLUR_Y 2.500');
+    expect(glsl).toContain('#define BLUR_Y 1.800');
   });
 
   it('reloads a running game with SET_SHADER', async () => {

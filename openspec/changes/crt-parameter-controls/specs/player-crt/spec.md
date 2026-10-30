@@ -8,7 +8,7 @@ The effect SHALL, by default, reproduce the tuned reference values for its
 per-pixel terms: scanline strength 1.0 with rolling scanlines at one line per
 source line, a 3px shadow mask measured in the fixed 1440x960 frame, the
 0.95/1.05/0.95 tint, the gain curve, filmic toe 0.013 and shoulder 5.6, gamma
-1.18, grain, flicker, vignette 0.35, and no barrel curvature. It SHALL also
+1.18, grain, flicker, vignette 0.4, and no barrel curvature. It SHALL also
 soften the sampled picture with the anisotropic beam blur required by the
 `Anisotropic beam blur` requirement.
 
@@ -111,8 +111,8 @@ restarting it or interrupting playback.
 ### Requirement: CRT preferences persist
 
 The player SHALL persist the adjustable values in the browser and SHALL offer a
-reset to the reference. Stored values that are missing, invalid or out of range
-SHALL fall back to the reference.
+reset to the defaults. Stored values that are missing, invalid or out of range
+SHALL fall back to the defaults.
 
 #### Scenario: Persist
 
@@ -122,7 +122,7 @@ SHALL fall back to the reference.
 #### Scenario: Reset
 
 - **WHEN** the user resets the controls
-- **THEN** every control returns to its reference value
+- **THEN** every control returns to its default value
 
 #### Scenario: Invalid stored values
 

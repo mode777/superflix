@@ -51,7 +51,7 @@ test('tunes CRT parameters while playing and remembers them', async ({ page }) =
   await page.getByRole('button', { name: 'Tune CRT' }).click();
   await expect(page.getByRole('slider', { name: 'Scanlines' })).toHaveValue('0');
 
-  await page.getByRole('button', { name: 'Reset to reference' }).click();
+  await page.getByRole('button', { name: 'Reset to defaults' }).click();
   await expect(page.getByRole('slider', { name: 'Scanlines' })).toHaveValue('100');
   await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
 

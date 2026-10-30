@@ -17,15 +17,15 @@ export interface CrtOverrides {
 /** Blur slider 1.0 maps to this many frame pixels on each axis. */
 export const MAX_BLUR = 12;
 
-/** The reference vertical/horizontal ratio, used for the default and migration. */
-export const BLUR_Y_RATIO = CRT_PARAMS.blurY / CRT_PARAMS.blurX;
+/** The legacy v0.8.0 linked-softness ratio, used only for migration. */
+export const BLUR_Y_RATIO = 2.5 / 6;
 
 export const DEFAULT_CRT_OVERRIDES: CrtOverrides = {
-  scanlineStrength: 1,
+  scanlineStrength: CRT_PARAMS.scanlineStrength,
   hBlur: CRT_PARAMS.blurX / MAX_BLUR,
   vBlur: CRT_PARAMS.blurY / MAX_BLUR,
-  vignette: 0.35,
-  ghosting: 0.3,
+  vignette: CRT_PARAMS.vignette,
+  ghosting: CRT_PARAMS.ghosting,
 };
 
 export const CRT_OVERRIDES_STORAGE_KEY = 'superflix.crt-params.v1';
@@ -37,6 +37,10 @@ function clamp01OrNull(value: unknown): number | null {
 
 function clamp01(value: unknown, fallback: number): number {
   return clamp01OrNull(value) ?? fallback;
+}
+
+function round3(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 /** Clamp an untrusted value into the override shape. Missing keys default. */
@@ -71,8 +75,8 @@ export function resolveCrtParams(overrides: CrtOverrides): CrtParams {
     scanlineStrength: overrides.scanlineStrength,
     vignette: overrides.vignette,
     ghosting: overrides.ghosting,
-    blurX: overrides.hBlur * MAX_BLUR,
-    blurY: overrides.vBlur * MAX_BLUR,
+    blurX: round3(overrides.hBlur * MAX_BLUR),
+    blurY: round3(overrides.vBlur * MAX_BLUR),
   };
 }
 

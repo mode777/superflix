@@ -68,7 +68,7 @@ export function CrtControls({ values, onChange, onReset }: CrtControlsProps) {
         onClick={onReset}
         className="mt-1 self-start rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-body-md text-on-surface-variant transition hover:border-white/20 hover:text-on-surface"
       >
-        Reset to reference
+        Reset to defaults
       </button>
     </div>
   );

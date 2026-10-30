@@ -39,16 +39,16 @@ export interface PresetFileSystem {
  * Changing one of these changes the picture: update the spec too.
  */
 export const CRT_PARAMS = {
-  vignette: 0.35,
+  vignette: 0.4,
   ghosting: 0.3,
   scanlineStrength: 1.0,
   filmicToe: 0.013,
   filmicShoulder: 5.6,
   gamma: 1.18,
   /** Horizontal beam-blur step, in 1440x960 frame pixels. */
-  blurX: 6.0,
+  blurX: 3.6,
   /** Vertical beam-blur step, in 1440x960 frame pixels. */
-  blurY: 2.5,
+  blurY: 1.8,
 } as const;
 
 /** Mutable shape of the tuned values, for user overrides. */
