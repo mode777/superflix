@@ -44,6 +44,17 @@ describe('buildShaderSource', () => {
     expect(source).toContain('#define GAMMA 1.180');
   });
 
+  it('normalises the padded texture varying to frame coordinates', () => {
+    const source = buildShaderSource();
+    // The emulator pads the frame into a larger texture, so tex_coord only
+    // spans InputSize / TextureSize; screen-space math must undo that.
+    expect(source).toContain('uniform vec2 InputSize;');
+    expect(source).toContain('uniform vec2 TextureSize;');
+    expect(source).toContain('vec2 span = max(InputSize / TextureSize, vec2(0.0001));');
+    expect(source).toContain('vec2 uv = tex_coord / span;');
+    expect(source).toContain('texture2D(Texture, uv * span)');
+  });
+
   it('runs a single pass: no feedback or previous-pass inputs', () => {
     const source = buildShaderSource();
     expect(source).not.toContain('Feedback');

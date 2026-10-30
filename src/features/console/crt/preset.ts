@@ -84,6 +84,8 @@ precision mediump float;
 varying vec2 tex_coord;
 uniform sampler2D Texture;
 uniform vec2 OutputSize;
+uniform vec2 InputSize;
+uniform vec2 TextureSize;
 uniform int FrameCount;
 
 #define VIGNETTE ${f(CRT_PARAMS.vignette)}
@@ -99,33 +101,38 @@ float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+// The emulator pads the core frame into a larger texture, so the vertex
+// varying only spans InputSize / TextureSize of the texture. Everything below
+// works in frame-relative 0..1 coordinates ("uv"), and tex() maps back.
+//
 // Linearised sample with the reference's 1.25 gain.
-vec3 tex(vec2 uv) {
-  return pow(abs(texture2D(Texture, uv).rgb), vec3(2.2)) * vec3(1.25);
+vec3 tex(vec2 uv, vec2 span) {
+  return pow(abs(texture2D(Texture, uv * span).rgb), vec3(2.2)) * vec3(1.25);
 }
 
 // The reference reads a pre-blurred buffer here; sample the frame inline.
-vec3 tex_blurred(vec2 uv) {
+vec3 tex_blurred(vec2 uv, vec2 span) {
   vec2 d = vec2(GHOST_BLUR) / OutputSize;
-  vec3 sum = tex(uv);
-  sum += tex(uv + vec2(d.x, 0.0));
-  sum += tex(uv - vec2(d.x, 0.0));
-  sum += tex(uv + vec2(0.0, d.y));
-  sum += tex(uv - vec2(0.0, d.y));
+  vec3 sum = tex(uv, span);
+  sum += tex(uv + vec2(d.x, 0.0), span);
+  sum += tex(uv - vec2(d.x, 0.0), span);
+  sum += tex(uv + vec2(0.0, d.y), span);
+  sum += tex(uv - vec2(0.0, d.y), span);
   return sum * 0.2;
 }
 
 void main() {
-  vec2 uv = tex_coord;
+  vec2 span = max(InputSize / TextureSize, vec2(0.0001));
+  vec2 uv = tex_coord / span;
   float time = mod(float(FrameCount) * TIME_SCALE, 640.0);
 
   // Per-scanline horizontal jitter from the reference (its "bleed" term).
   float x = sin(gl_FragCoord.y * 1.5) / OutputSize.x * 0.25;
 
   vec3 col;
-  col.r = tex(vec2(x + uv.x + 0.0009, uv.y + 0.0009)).x + 0.02;
-  col.g = tex(vec2(x + uv.x + 0.0000, uv.y - 0.0011)).y + 0.02;
-  col.b = tex(vec2(x + uv.x - 0.0015, uv.y + 0.0000)).z + 0.02;
+  col.r = tex(vec2(x + uv.x + 0.0009, uv.y + 0.0009), span).x + 0.02;
+  col.g = tex(vec2(x + uv.x + 0.0000, uv.y - 0.0011), span).y + 0.02;
+  col.b = tex(vec2(x + uv.x - 0.0015, uv.y + 0.0000), span).z + 0.02;
 
   float i = clamp(col.r * 0.299 + col.g * 0.587 + col.b * 0.114, 0.0, 1.0);
   i = pow(1.0 - pow(i, 2.0), 1.0);
@@ -135,15 +142,15 @@ void main() {
   vec3 r = tex_blurred(vec2(x - 0.014, -0.027) * 0.85 + 0.007 * vec2(
             0.35 * sin(1.0 / 7.0 + 15.0 * uv.y + 0.9 * time),
             0.35 * sin(2.0 / 7.0 + 10.0 * uv.y + 1.37 * time))
-          + vec2(uv.x + 0.001, uv.y + 0.001)) * vec3(0.5, 0.25, 0.25);
+          + vec2(uv.x + 0.001, uv.y + 0.001), span) * vec3(0.5, 0.25, 0.25);
   vec3 g = tex_blurred(vec2(x - 0.019, -0.020) * 0.85 + 0.007 * vec2(
             0.35 * cos(1.0 / 9.0 + 15.0 * uv.y + 0.5 * time),
             0.35 * sin(2.0 / 9.0 + 10.0 * uv.y + 1.50 * time))
-          + vec2(uv.x + 0.000, uv.y - 0.002)) * vec3(0.25, 0.5, 0.25);
+          + vec2(uv.x + 0.000, uv.y - 0.002), span) * vec3(0.25, 0.5, 0.25);
   vec3 b = tex_blurred(vec2(x - 0.017, -0.003) * 0.85 + 0.007 * vec2(
             0.35 * sin(2.0 / 3.0 + 15.0 * uv.y + 0.7 * time),
             0.35 * cos(2.0 / 3.0 + 10.0 * uv.y + 1.63 * time))
-          + vec2(uv.x - 0.002, uv.y + 0.000)) * vec3(0.25, 0.25, 0.5);
+          + vec2(uv.x - 0.002, uv.y + 0.000), span) * vec3(0.25, 0.25, 0.5);
 
   col += vec3(ghs * (1.0 - 0.299)) * pow(clamp(vec3(3.0) * r, 0.0, 1.0), vec3(2.0)) * vec3(i);
   col += vec3(ghs * (1.0 - 0.587)) * pow(clamp(vec3(3.0) * g, 0.0, 1.0), vec3(2.0)) * vec3(i);
