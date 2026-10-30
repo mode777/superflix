@@ -68,8 +68,10 @@ never imports Nostalgist directly.
   `start()` or `resume()`.
 - Save states are core-specific. Keep `core`/`core_version` in the schema.
 - SRAM is a raw `.srm` blob; load it by relaunching with the `sram` option.
-- Volume is approximate (`VOLUME_UP`/`VOLUME_DOWN` commands); CRT is a CSS
-  scanline overlay, not a RetroArch shader.
+- Volume is approximate (`VOLUME_UP`/`VOLUME_DOWN` commands); CRT is a
+  single-pass RetroArch GLSL shader, not a CSS overlay. Scanlines are drawn one
+  per emulated source line, so the pattern does not follow the display
+  density.
 
 ### ROM identity
 

@@ -71,16 +71,21 @@ Games with battery-backed saves expose a **Battery save** menu:
   or fullscreen size changes, so the picture stays even and playback continues.
 - **Hi-res and PAL**: screens that are not 256×224 (512×448 hi-res or 239-line
   PAL) are shown at the nearest whole multiple with black borders rather than
-  being stretched. With the CRT effect on, they are presented inside the same
-  256×224 source frame, so detail is reduced but the geometry stays correct.
+  being stretched. With the CRT effect on, the picture fills the fixed
+  1440x960 effect frame and the scanline pitch follows the frame's line count —
+  239 for PAL and 448 for hi-res — so the geometry stays correct and the
+  scanlines stay one per source line.
 - **CRT effect** is on by default and is applied by the emulator itself as a
-  single-pass shader: rolling scanlines, a shadow mask, chroma bleed, faint
-  ghosting, a filmic tonemap, grain and a light vignette, rendered into a fixed
-  1440x960 frame and fitted to the 4:3 window. Window size, fullscreen and
-  display density do not change the look. The **CRT** button switches the
-  effect off to show the raw emulator picture. The effect has no phosphor
-  persistence — quick motion leaves no trail — and browsers without the shader
-  pipeline simply show the raw picture.
+  single-pass shader: rolling scanlines at one line per emulated source line
+  (224 NTSC, 239 PAL, 448 hi-res), a shadow mask, chroma bleed, faint ghosting,
+  a filmic tonemap, grain and a light vignette, rendered into a fixed 1440x960
+  frame and fitted to the 4:3 window. The scanline pitch, mask, jitter and blur
+  are fixed in that frame, so window size, fullscreen and display density do not
+  change the pattern. A soft, horizontally dominant beam blur keeps the picture
+  from looking harsh without washing out the scanlines. The **CRT** button
+  switches the effect off to show the raw emulator picture. The effect has no
+  phosphor persistence — quick motion leaves no trail — and browsers without
+  the shader pipeline simply show the raw picture.
 - **Volume** is absolute: 100 is the core's full output, 50 is roughly half
   amplitude (−6 dB), and 0 silences the game. Changes apply immediately and do
   not interrupt playback.

@@ -45,8 +45,10 @@ export const CRT_PARAMS = {
   filmicToe: 0.013,
   filmicShoulder: 5.6,
   gamma: 1.18,
-  /** Output-space radius of the inline blur used for the ghost halo. */
-  ghostBlur: 4.0,
+  /** Horizontal beam-blur step, in 1440x960 frame pixels. */
+  blurX: 6.0,
+  /** Vertical beam-blur step, in 1440x960 frame pixels. */
+  blurY: 2.5,
 } as const;
 
 function f(value: number): string {
@@ -94,7 +96,10 @@ uniform int FrameCount;
 #define FILMIC_TOE ${f(CRT_PARAMS.filmicToe)}
 #define FILMIC_SHOULDER ${f(CRT_PARAMS.filmicShoulder)}
 #define GAMMA ${f(CRT_PARAMS.gamma)}
-#define GHOST_BLUR ${f(CRT_PARAMS.ghostBlur)}
+#define BLUR_X ${f(CRT_PARAMS.blurX)}
+#define BLUR_Y ${f(CRT_PARAMS.blurY)}
+#define FRAME_WIDTH ${f(CRT_OUTPUT.width)}
+#define FRAME_HEIGHT ${f(CRT_OUTPUT.height)}
 #define TIME_SCALE ${still ? '0.000' : '1.000'}
 
 float rand(vec2 co) {
@@ -110,29 +115,35 @@ vec3 tex(vec2 uv, vec2 span) {
   return pow(abs(texture2D(Texture, uv * span).rgb), vec3(2.2)) * vec3(1.25);
 }
 
-// The reference reads a pre-blurred buffer here; sample the frame inline.
+// Inline anisotropic beam blur. The reference reads a pre-blurred buffer
+// here; the horizontal step is larger than the vertical one so the picture
+// softens along the beam without washing out the scanlines. The radii are in
+// fixed-frame pixels, so they do not follow the output surface.
 vec3 tex_blurred(vec2 uv, vec2 span) {
-  vec2 d = vec2(GHOST_BLUR) / OutputSize;
-  vec3 sum = tex(uv, span);
+  vec2 d = vec2(BLUR_X / FRAME_WIDTH, BLUR_Y / FRAME_HEIGHT);
+  vec3 sum = tex(uv, span) * 2.0;
   sum += tex(uv + vec2(d.x, 0.0), span);
   sum += tex(uv - vec2(d.x, 0.0), span);
-  sum += tex(uv + vec2(0.0, d.y), span);
-  sum += tex(uv - vec2(0.0, d.y), span);
+  sum += (tex(uv + vec2(0.0, d.y), span) + tex(uv - vec2(0.0, d.y), span)) * 0.5;
   return sum * 0.2;
 }
 
 void main() {
   vec2 span = max(InputSize / TextureSize, vec2(0.0001));
   vec2 uv = tex_coord / span;
+  // One scanline period per emulated source line: 224 NTSC, 239 PAL, 448
+  // hi-res. Anchored to the frame, never to the output surface.
+  float lines = max(InputSize.y, 1.0);
   float time = mod(float(FrameCount) * TIME_SCALE, 640.0);
 
-  // Per-scanline horizontal jitter from the reference (its "bleed" term).
-  float x = sin(gl_FragCoord.y * 1.5) / OutputSize.x * 0.25;
+  // Per-scanline horizontal jitter from the reference (its "bleed" term),
+  // expressed in frame units.
+  float x = sin(uv.y * lines * 6.2831853) / FRAME_WIDTH * 0.25;
 
   vec3 col;
-  col.r = tex(vec2(x + uv.x + 0.0009, uv.y + 0.0009), span).x + 0.02;
-  col.g = tex(vec2(x + uv.x + 0.0000, uv.y - 0.0011), span).y + 0.02;
-  col.b = tex(vec2(x + uv.x - 0.0015, uv.y + 0.0000), span).z + 0.02;
+  col.r = tex_blurred(vec2(x + uv.x + 0.0009, uv.y + 0.0009), span).x + 0.02;
+  col.g = tex_blurred(vec2(x + uv.x + 0.0000, uv.y - 0.0011), span).y + 0.02;
+  col.b = tex_blurred(vec2(x + uv.x - 0.0015, uv.y + 0.0000), span).z + 0.02;
 
   float i = clamp(col.r * 0.299 + col.g * 0.587 + col.b * 0.114, 0.0, 1.0);
   i = pow(1.0 - pow(i, 2.0), 1.0);
@@ -164,12 +175,13 @@ void main() {
   vig = 1.3 * sqrt(max(vig, 0.0));
   col *= vig;
 
+  float phase = uv.y * lines * 6.2831853;
   float scans = clamp(
-    1.0 - SCANLINE_STRENGTH * (0.65 - 0.18 * sin(6.0 * time - uv.y * OutputSize.y * 1.5)),
+    1.0 - SCANLINE_STRENGTH * (0.65 - 0.18 * sin(6.0 * time - phase)),
     0.0, 1.0);
   col *= pow(scans, 0.9);
 
-  col *= 1.0 - 0.23 * clamp(mod(gl_FragCoord.x, 3.0) / 2.0, 0.0, 1.0);
+  col *= 1.0 - 0.23 * clamp(mod(uv.x * FRAME_WIDTH, 3.0) / 2.0, 0.0, 1.0);
 
   vec3 toe = max(vec3(0.0), col - vec3(FILMIC_TOE));
   col = (toe * (FILMIC_SHOULDER * toe + 0.5)) / (toe * (FILMIC_SHOULDER * toe + 1.7) + 0.06);

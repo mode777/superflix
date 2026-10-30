@@ -32,7 +32,7 @@ vertical slice**, not a finished product:
 - ✅ Cover/screenshot download from libretro-thumbnails, downscaled and stored in PocketBase
 - ✅ End-user sign-in, favorites, and local-first cloud save-state/SRAM sync
 - ✅ Browser player via Nostalgist + Snes9x (save states, SRAM export/import,
-  CRT scanline overlay, controller input via RetroArch)
+  CRT scanline shader, controller input via RetroArch)
 - ✅ Bundled MIT-licensed demo ROM (**Gothicvania**) playable out of the box
 - ✅ PocketBase schema + generated migration for games, ROM variants, save
   states, SRAM, documents, favorites
