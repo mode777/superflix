@@ -36,7 +36,7 @@
 - [x] 6.2 Replace the Softness control with labelled "H blur" and "V blur" sliders, update component and service tests, and verify the panel still fits the phone bottom sheet
 - [x] 6.3 Update the change's proposal, spec and design for independent blur and the default-anisotropy override, and verify `openspec validate crt-parameter-controls --strict` passes
 - [x] 6.4 Run typecheck, lint, unit tests, build and the e2e suite, then capture independent H/V blur on the verification box and confirm live apply and no shader errors
-- [ ] 6.5 Publish v0.8.1 (version bump, commit, tag) and verify CI, release and Flux
+- [x] 6.5 Publish v0.8.1 (version bump, commit, tag) and verify CI, release and Flux
 
 ## Workflow follow-up
 
