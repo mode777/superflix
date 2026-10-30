@@ -51,6 +51,9 @@ export const CRT_PARAMS = {
   blurY: 2.5,
 } as const;
 
+/** Mutable shape of the tuned values, for user overrides. */
+export type CrtParams = { [K in keyof typeof CRT_PARAMS]: number };
+
 function f(value: number): string {
   return value.toFixed(3);
 }
@@ -61,9 +64,11 @@ export interface ShaderOptions {
    * reduced motion; RetroArch has no runtime uniform override for this.
    */
   still?: boolean;
+  /** Resolved shader values. Defaults to the reference look. */
+  params?: CrtParams;
 }
 
-export function buildShaderSource({ still = false }: ShaderOptions = {}): string {
+export function buildShaderSource({ still = false, params = CRT_PARAMS }: ShaderOptions = {}): string {
   return `#ifdef VERTEX
 attribute vec4 VertexCoord;
 attribute vec4 TexCoord;
@@ -90,14 +95,14 @@ uniform vec2 InputSize;
 uniform vec2 TextureSize;
 uniform int FrameCount;
 
-#define VIGNETTE ${f(CRT_PARAMS.vignette)}
-#define GHOSTING ${f(CRT_PARAMS.ghosting)}
-#define SCANLINE_STRENGTH ${f(CRT_PARAMS.scanlineStrength)}
-#define FILMIC_TOE ${f(CRT_PARAMS.filmicToe)}
-#define FILMIC_SHOULDER ${f(CRT_PARAMS.filmicShoulder)}
-#define GAMMA ${f(CRT_PARAMS.gamma)}
-#define BLUR_X ${f(CRT_PARAMS.blurX)}
-#define BLUR_Y ${f(CRT_PARAMS.blurY)}
+#define VIGNETTE ${f(params.vignette)}
+#define GHOSTING ${f(params.ghosting)}
+#define SCANLINE_STRENGTH ${f(params.scanlineStrength)}
+#define FILMIC_TOE ${f(params.filmicToe)}
+#define FILMIC_SHOULDER ${f(params.filmicShoulder)}
+#define GAMMA ${f(params.gamma)}
+#define BLUR_X ${f(params.blurX)}
+#define BLUR_Y ${f(params.blurY)}
 #define FRAME_WIDTH ${f(CRT_OUTPUT.width)}
 #define FRAME_HEIGHT ${f(CRT_OUTPUT.height)}
 #define TIME_SCALE ${still ? '0.000' : '1.000'}

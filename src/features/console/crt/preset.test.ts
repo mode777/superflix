@@ -53,6 +53,24 @@ describe('buildShaderSource', () => {
     expect(source).toContain('#define FRAME_HEIGHT 960.000');
   });
 
+  it('uses supplied parameter values', () => {
+    const source = buildShaderSource({
+      params: {
+        ...CRT_PARAMS,
+        scanlineStrength: 0.5,
+        vignette: 0.2,
+        ghosting: 0.1,
+        blurX: 3,
+        blurY: 1,
+      },
+    });
+    expect(source).toContain('#define SCANLINE_STRENGTH 0.500');
+    expect(source).toContain('#define VIGNETTE 0.200');
+    expect(source).toContain('#define GHOSTING 0.100');
+    expect(source).toContain('#define BLUR_X 3.000');
+    expect(source).toContain('#define BLUR_Y 1.000');
+  });
+
   it('normalises the padded texture varying to frame coordinates', () => {
     const source = buildShaderSource();
     // The emulator pads the frame into a larger texture, so tex_coord only

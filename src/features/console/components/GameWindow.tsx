@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { SAVE_SLOTS, type EmulatorSettings, type RuntimeState, type SaveSlot } from '../types';
 import type { SyncStatus } from '../services/syncStore';
 import { usePlayerScale } from '../hooks/usePlayerScale';
+import { CrtControls } from './CrtControls';
+import type { CrtOverrides } from '../crt/params';
 
 interface GameWindowProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -21,6 +23,8 @@ interface GameWindowProps {
   onVolume: (value: number) => void;
   onToggleMute: () => void;
   onToggleCrt: () => void;
+  onCrtParams: (patch: Partial<CrtOverrides>) => void;
+  onResetCrtParams: () => void;
   onDownloadSram: () => void;
   onUploadSram: (file: File) => void;
   onPickRom: (file: File) => void;
@@ -39,22 +43,28 @@ function ControlButton({
   onClick,
   disabled,
   active,
+  expanded,
+  buttonRef,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
+  expanded?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       disabled={disabled}
       title={label}
       aria-label={label}
+      aria-expanded={expanded}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-lg border transition-colors',
+        'flex h-9 w-9 scroll-mt-24 items-center justify-center rounded-lg border transition-colors',
         active
           ? 'border-primary/40 bg-primary/15 text-primary'
           : 'border-white/10 bg-white/[0.04] text-on-surface-variant hover:border-white/20 hover:text-on-surface',
@@ -85,6 +95,8 @@ export function GameWindow({
   onVolume,
   onToggleMute,
   onToggleCrt,
+  onCrtParams,
+  onResetCrtParams,
   onDownloadSram,
   onUploadSram,
   onPickRom,
@@ -96,6 +108,9 @@ export function GameWindow({
   const [slot, setSlot] = useState<SaveSlot>('slot1');
   const [sramOpen, setSramOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [crtOpen, setCrtOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const crtButtonRef = useRef<HTMLButtonElement>(null);
 
   usePlayerScale(containerRef, stageRef, canvasRef, settings.crt);
 
@@ -104,6 +119,29 @@ export function GameWindow({
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
+
+  const closeCrt = useCallback(() => {
+    setCrtOpen(false);
+    crtButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!crtOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        closeCrt();
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeCrt();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [crtOpen, closeCrt]);
 
   const isPlaying = runtime.status === 'playing';
   const isBusy = runtime.status === 'loading';
@@ -261,6 +299,28 @@ export function GameWindow({
             onClick={onToggleCrt}
             active={settings.crt}
           />
+          <div className="relative" ref={panelRef}>
+            <ControlButton
+              buttonRef={crtButtonRef}
+              icon="tune"
+              label="Tune CRT"
+              onClick={() => setCrtOpen((open) => !open)}
+              active={crtOpen}
+              expanded={crtOpen}
+            />
+            {crtOpen && (
+              <div className="fixed inset-x-3 bottom-3 z-30 rounded-xl border border-white/10 bg-surface-container-high p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2 sm:w-72">
+                <span className="mb-2 block text-label-caps uppercase tracking-[0.16em] text-on-surface-variant">
+                  Tune CRT
+                </span>
+                <CrtControls
+                  values={settings.crtParams}
+                  onChange={onCrtParams}
+                  onReset={onResetCrtParams}
+                />
+              </div>
+            )}
+          </div>
           <ControlButton
             icon={settings.muted ? 'volume_off' : 'volume_up'}
             label={settings.muted ? 'Unmute' : 'Mute'}

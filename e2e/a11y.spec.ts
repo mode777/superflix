@@ -41,6 +41,10 @@ test('player has no serious accessibility violations after boot', async ({ page 
   });
 
   await expectNoSeriousViolations(page, 'player');
+
+  await page.getByRole('button', { name: 'Tune CRT' }).click();
+  await expect(page.getByRole('group', { name: 'CRT settings' })).toBeVisible();
+  await expectNoSeriousViolations(page, 'player with CRT panel open');
 });
 
 test('reduced motion disables decorative animation', async ({ page }) => {
@@ -68,4 +72,15 @@ test('keyboard users can reach the player transport controls', async ({ page }) 
   await expect(play).toBeFocused();
   await expect(page.getByRole('button', { name: 'Save state', exact: true })).toBeVisible();
   await expect(page.getByRole('slider', { name: 'Volume' })).toBeVisible();
+
+  const tune = page.getByRole('button', { name: 'Tune CRT' });
+  await tune.focus();
+  await expect(tune).toBeFocused();
+  await tune.press('Enter');
+  await expect(page.getByRole('slider', { name: 'Scanlines' })).toBeVisible();
+  const scanlineSlider = page.getByRole('slider', { name: 'Scanlines' });
+  await scanlineSlider.focus();
+  await expect(scanlineSlider).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(tune).toBeFocused();
 });

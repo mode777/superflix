@@ -36,8 +36,25 @@ function lastLaunchOptions() {
     { size?: { width: number; height: number } } | undefined;
 }
 
+const SHADER_DIR = '/home/web_user/retroarch/bundle/shaders/shaders_glsl';
+
+function installPresetIntoFs(): Map<string, string> {
+  const options = h.launch.mock.calls.at(-1)?.[0] as {
+    beforeLaunch?: (nostalgist: { getEmscriptenFS: () => unknown }) => void;
+  };
+  const files = new Map<string, string>();
+  options.beforeLaunch?.({
+    getEmscriptenFS: () => ({
+      mkdirTree: () => {},
+      writeFile: (path: string, data: string) => files.set(path, data),
+    }),
+  });
+  return files;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   h.emulator.getStatus.mockReturnValue('initial');
 });
 
@@ -125,22 +142,14 @@ describe('NostalgistEmulatorService video sizing', () => {
     const service = new NostalgistEmulatorService();
     await boot(service);
 
-    const options = h.launch.mock.calls.at(-1)?.[0] as {
-      beforeLaunch?: (nostalgist: { getEmscriptenFS: () => unknown }) => void;
-    };
-    const files = new Map<string, string>();
-    options.beforeLaunch?.({
-      getEmscriptenFS: () => ({
-        mkdirTree: () => {},
-        writeFile: (path: string, data: string) => files.set(path, data),
-      }),
-    });
-
-    const shaderDir = '/home/web_user/retroarch/bundle/shaders/shaders_glsl';
-    expect(files.get(`${shaderDir}/newpixie-crt.glslp`)).toContain('shaders = 1');
-    expect(files.get(`${shaderDir}/shaders/newpixie-crt.glsl`)).toContain('#ifdef FRAGMENT');
+    const files = installPresetIntoFs();
+    expect(files.get(`${SHADER_DIR}/newpixie-crt.glslp`)).toContain('shaders = 1');
+    const glsl = files.get(`${SHADER_DIR}/shaders/newpixie-crt.glsl`);
+    expect(glsl).toContain('#ifdef FRAGMENT');
+    expect(glsl).toContain('#define SCANLINE_STRENGTH 1.000');
+    expect(glsl).toContain('#define BLUR_X 6.000');
     expect(files.get('/home/web_user/retroarch/userdata/config/global.glslp')).toBe(
-      `#reference ${shaderDir}/newpixie-crt.glslp\n`,
+      `#reference ${SHADER_DIR}/newpixie-crt.glslp\n`,
     );
   });
 
@@ -160,5 +169,73 @@ describe('NostalgistEmulatorService video sizing', () => {
     expect(service.getSettings().crt).toBe(true);
     expect(h.emulator.sendCommand).toHaveBeenCalledTimes(2);
     expect(h.launch).toHaveBeenCalledTimes(launches);
+  });
+});
+
+describe('NostalgistEmulatorService CRT parameters', () => {
+  it('stores values before launch and applies them at launch', async () => {
+    const service = new NostalgistEmulatorService();
+    service.setCrtParams({ scanlineStrength: 0.4, softness: 0.25 });
+    expect(h.emulator.sendCommand).not.toHaveBeenCalled();
+
+    await boot(service);
+    const files = installPresetIntoFs();
+    const glsl = files.get(`${SHADER_DIR}/shaders/newpixie-crt.glsl`);
+
+    expect(glsl).toContain('#define SCANLINE_STRENGTH 0.400');
+    expect(glsl).toContain('#define BLUR_X 3.000');
+    expect(glsl).toContain('#define BLUR_Y 1.250');
+  });
+
+  it('reloads a running game with SET_SHADER', async () => {
+    const service = new NostalgistEmulatorService();
+    await boot(service);
+    const files = installPresetIntoFs();
+    h.emulator.sendCommand.mockClear();
+
+    service.setCrtParams({ vignette: 0.2 });
+
+    expect(h.emulator.sendCommand).toHaveBeenCalledWith(
+      `SET_SHADER ${SHADER_DIR}/newpixie-crt.glslp`,
+    );
+    expect(files.get(`${SHADER_DIR}/shaders/newpixie-crt.glsl`)).toContain(
+      '#define VIGNETTE 0.200',
+    );
+  });
+
+  it('writes but does not load while CRT is off', async () => {
+    const service = new NostalgistEmulatorService();
+    await boot(service);
+    const files = installPresetIntoFs();
+    service.setCrt(false);
+    h.emulator.sendCommand.mockClear();
+
+    service.setCrtParams({ ghosting: 0.1 });
+
+    expect(h.emulator.sendCommand).not.toHaveBeenCalled();
+    expect(files.get(`${SHADER_DIR}/shaders/newpixie-crt.glsl`)).toContain(
+      '#define GHOSTING 0.100',
+    );
+  });
+
+  it('persists values across service instances', () => {
+    const service = new NostalgistEmulatorService();
+    service.setCrtParams({ softness: 0.25 });
+
+    const next = new NostalgistEmulatorService();
+    expect(next.getSettings().crtParams.softness).toBe(0.25);
+  });
+
+  it('clamps invalid values and ignores a no-op', async () => {
+    const service = new NostalgistEmulatorService();
+    await boot(service);
+    installPresetIntoFs();
+
+    service.setCrtParams({ softness: 2 });
+    expect(service.getSettings().crtParams.softness).toBe(1);
+
+    h.emulator.sendCommand.mockClear();
+    service.setCrtParams({ softness: 1 });
+    expect(h.emulator.sendCommand).not.toHaveBeenCalled();
   });
 });

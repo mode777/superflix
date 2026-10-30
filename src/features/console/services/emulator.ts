@@ -1,4 +1,5 @@
 import type { EmulatorSettings, RuntimeState, SaveSlot } from '../types';
+import type { CrtOverrides } from '../crt/params';
 
 export interface LoadRomOptions {
   gameId?: string;
@@ -40,6 +41,7 @@ export interface EmulatorService {
   setMuted(muted: boolean): void;
   toggleMute(): void;
   setCrt(enabled: boolean): void;
+  setCrtParams(patch: Partial<CrtOverrides>): void;
   getSettings(): EmulatorSettings;
   subscribeSettings(listener: () => void): () => void;
 }

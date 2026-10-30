@@ -10,6 +10,7 @@ import { useRuntime } from '@/features/console/hooks/useRuntime';
 import { useSaveStates } from '@/features/console/hooks/useSaveStates';
 import { useSettings } from '@/features/console/hooks/useSettings';
 import { emulatorService } from '@/features/console/services';
+import { DEFAULT_CRT_OVERRIDES } from '@/features/console/crt/params';
 import * as saveSync from '@/features/console/services/saveSync';
 import { useSyncStore } from '@/features/console/services/syncStore';
 import type { SaveSlot } from '@/features/console/types';
@@ -216,6 +217,8 @@ export default function ConsoleView() {
             onVolume={(value) => emulatorService.setVolume(value)}
             onToggleMute={() => emulatorService.toggleMute()}
             onToggleCrt={() => emulatorService.setCrt(!settings.crt)}
+            onCrtParams={(patch) => emulatorService.setCrtParams(patch)}
+            onResetCrtParams={() => emulatorService.setCrtParams(DEFAULT_CRT_OVERRIDES)}
             onDownloadSram={() => void handleDownloadSram()}
             onUploadSram={(file) => void handleUploadSram(file)}
             onPickRom={loadLocalRom}

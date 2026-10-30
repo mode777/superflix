@@ -1,3 +1,5 @@
+import type { CrtOverrides } from './crt/params';
+
 export type PlayerStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
 export type SaveSlot = 'auto' | 'slot1' | 'slot2' | 'slot3';
@@ -20,4 +22,5 @@ export interface EmulatorSettings {
   crt: boolean;
   volume: number;
   muted: boolean;
+  crtParams: CrtOverrides;
 }

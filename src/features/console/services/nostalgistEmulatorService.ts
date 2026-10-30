@@ -2,6 +2,13 @@ import { Nostalgist } from 'nostalgist';
 import type { EmulatorService, LoadRomOptions } from './emulator';
 import { applyEmulatorVolume, effectiveDb, volumeToDb } from './volume';
 import { installPreset, type PresetFileSystem } from '../crt/preset';
+import {
+  clampCrtOverrides,
+  readStoredCrtOverrides,
+  resolveCrtParams,
+  writeStoredCrtOverrides,
+  type CrtOverrides,
+} from '../crt/params';
 import { SAVE_SLOTS, type EmulatorSettings, type RuntimeState, type SaveSlot } from '../types';
 
 const CORE = 'snes9x';
@@ -33,11 +40,20 @@ export class NostalgistEmulatorService implements EmulatorService {
   private emulator: Nostalgist | null = null;
   /** Drawing-buffer size requested by the layout, kept across ROM loads. */
   private videoSize: { width: number; height: number } | null = null;
+  /** Emulator FS and preset path, retained so shader params can reload live. */
+  private shaderFs: PresetFileSystem | null = null;
+  private presetPath: string | null = null;
+  private shaderStill = false;
   private currentRom: { input: File | string; gameId: string; fileName: string } | null = null;
   private runtime: RuntimeState = { status: 'idle', gameId: null, elapsedMs: 0, error: null };
   private readonly runtimeListeners = new Set<() => void>();
   private readonly settingsListeners = new Set<() => void>();
-  private settings: EmulatorSettings = { crt: true, volume: 80, muted: false };
+  private settings: EmulatorSettings = {
+    crt: true,
+    volume: 80,
+    muted: false,
+    crtParams: readStoredCrtOverrides(),
+  };
   /** dB currently written to the core, or the launch baseline before it starts. */
   private appliedDb = volumeToDb(this.settings.volume);
   /** Save states keyed by `${gameId}:${slot}`. */
@@ -106,8 +122,12 @@ export class NostalgistEmulatorService implements EmulatorService {
         // itself. It has to be in the virtual filesystem before video starts,
         // so it is written here rather than after launch. See crt/preset.ts.
         beforeLaunch: (nostalgist) => {
-          installPreset(nostalgist.getEmscriptenFS() as PresetFileSystem, {
-            still: prefersReducedMotion(),
+          this.shaderStill = prefersReducedMotion();
+          const fs = nostalgist.getEmscriptenFS() as PresetFileSystem;
+          this.shaderFs = fs;
+          this.presetPath = installPreset(fs, {
+            still: this.shaderStill,
+            params: resolveCrtParams(this.settings.crtParams),
           });
         },
         retroarchConfig: {
@@ -191,6 +211,9 @@ export class NostalgistEmulatorService implements EmulatorService {
     }
     this.currentRom = null;
     this.sram = null;
+    this.shaderFs = null;
+    this.presetPath = null;
+    this.shaderStill = false;
     this.appliedDb = volumeToDb(this.settings.volume);
     this.setRuntime({ status: 'idle', gameId: null, elapsedMs: 0, error: null });
   }
@@ -272,8 +295,40 @@ export class NostalgistEmulatorService implements EmulatorService {
     // RetroArch swaps the loaded preset for its stock output; the core keeps
     // running, so save state, SRAM and audio are untouched. The command exists
     // in RetroArch 1.22 but not in Nostalgist's typed command union.
+    this.sendRawCommand('SHADER_TOGGLE');
+  }
+
+  setCrtParams(patch: Partial<CrtOverrides>): void {
+    const next = clampCrtOverrides({ ...this.settings.crtParams, ...patch });
+    const current = this.settings.crtParams;
+    if (
+      next.scanlineStrength === current.scanlineStrength &&
+      next.softness === current.softness &&
+      next.vignette === current.vignette &&
+      next.ghosting === current.ghosting
+    ) {
+      return;
+    }
+
+    this.setSettings({ crtParams: next });
+    writeStoredCrtOverrides(next);
+
+    if (!this.shaderFs || !this.presetPath) return;
+    installPreset(this.shaderFs, {
+      still: this.shaderStill,
+      params: resolveCrtParams(next),
+    });
+
+    if (this.emulator && this.settings.crt) {
+      // The spike against this build proved SET_SHADER reloads the rewritten
+      // preset without restarting the core.
+      this.sendRawCommand(`SET_SHADER ${this.presetPath}`);
+    }
+  }
+
+  private sendRawCommand(command: string): void {
     const emulator = this.emulator as unknown as { sendCommand(command: string): void } | null;
-    emulator?.sendCommand('SHADER_TOGGLE');
+    emulator?.sendCommand(command);
   }
 
   getSettings(): EmulatorSettings {

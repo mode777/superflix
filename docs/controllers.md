@@ -86,6 +86,10 @@ Games with battery-backed saves expose a **Battery save** menu:
   switches the effect off to show the raw emulator picture. The effect has no
   phosphor persistence — quick motion leaves no trail — and browsers without
   the shader pipeline simply show the raw picture.
+- **Tune CRT** opens four sliders — scanlines, softness, vignette and
+  ghosting — with the reference values as defaults (100% scanlines, 50%
+  softness, 35% vignette, 30% ghosting). Changes apply to a running game,
+  persist in this browser, and **Reset to reference** restores the defaults.
 - **Volume** is absolute: 100 is the core's full output, 50 is roughly half
   amplitude (−6 dB), and 0 silences the game. Changes apply immediately and do
   not interrupt playback.
