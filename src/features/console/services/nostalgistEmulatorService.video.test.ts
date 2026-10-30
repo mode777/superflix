@@ -175,7 +175,7 @@ describe('NostalgistEmulatorService video sizing', () => {
 describe('NostalgistEmulatorService CRT parameters', () => {
   it('stores values before launch and applies them at launch', async () => {
     const service = new NostalgistEmulatorService();
-    service.setCrtParams({ scanlineStrength: 0.4, softness: 0.25 });
+    service.setCrtParams({ scanlineStrength: 0.4, hBlur: 0.25 });
     expect(h.emulator.sendCommand).not.toHaveBeenCalled();
 
     await boot(service);
@@ -184,7 +184,7 @@ describe('NostalgistEmulatorService CRT parameters', () => {
 
     expect(glsl).toContain('#define SCANLINE_STRENGTH 0.400');
     expect(glsl).toContain('#define BLUR_X 3.000');
-    expect(glsl).toContain('#define BLUR_Y 1.250');
+    expect(glsl).toContain('#define BLUR_Y 2.500');
   });
 
   it('reloads a running game with SET_SHADER', async () => {
@@ -220,10 +220,10 @@ describe('NostalgistEmulatorService CRT parameters', () => {
 
   it('persists values across service instances', () => {
     const service = new NostalgistEmulatorService();
-    service.setCrtParams({ softness: 0.25 });
+    service.setCrtParams({ hBlur: 0.25 });
 
     const next = new NostalgistEmulatorService();
-    expect(next.getSettings().crtParams.softness).toBe(0.25);
+    expect(next.getSettings().crtParams.hBlur).toBe(0.25);
   });
 
   it('clamps invalid values and ignores a no-op', async () => {
@@ -231,11 +231,11 @@ describe('NostalgistEmulatorService CRT parameters', () => {
     await boot(service);
     installPresetIntoFs();
 
-    service.setCrtParams({ softness: 2 });
-    expect(service.getSettings().crtParams.softness).toBe(1);
+    service.setCrtParams({ hBlur: 2 });
+    expect(service.getSettings().crtParams.hBlur).toBe(1);
 
     h.emulator.sendCommand.mockClear();
-    service.setCrtParams({ softness: 1 });
+    service.setCrtParams({ hBlur: 1 });
     expect(h.emulator.sendCommand).not.toHaveBeenCalled();
   });
 });

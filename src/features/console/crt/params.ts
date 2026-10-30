@@ -6,55 +6,73 @@ import { CRT_PARAMS, type CrtParams } from './preset';
  */
 export interface CrtOverrides {
   scanlineStrength: number;
-  softness: number;
+  /** Horizontal blur, 0..1 -> blurX 0..MAX_BLUR frame pixels. */
+  hBlur: number;
+  /** Vertical blur, independent of hBlur. */
+  vBlur: number;
   vignette: number;
   ghosting: number;
 }
 
+/** Blur slider 1.0 maps to this many frame pixels on each axis. */
+export const MAX_BLUR = 12;
+
+/** The reference vertical/horizontal ratio, used for the default and migration. */
+export const BLUR_Y_RATIO = CRT_PARAMS.blurY / CRT_PARAMS.blurX;
+
 export const DEFAULT_CRT_OVERRIDES: CrtOverrides = {
   scanlineStrength: 1,
-  softness: 0.5,
+  hBlur: CRT_PARAMS.blurX / MAX_BLUR,
+  vBlur: CRT_PARAMS.blurY / MAX_BLUR,
   vignette: 0.35,
   ghosting: 0.3,
 };
 
 export const CRT_OVERRIDES_STORAGE_KEY = 'superflix.crt-params.v1';
 
-/** Softness 1.0 maps to this horizontal blur step in frame pixels. */
-export const SOFTNESS_MAX_BLUR_X = 12;
-
-/** Vertical/horizontal ratio that reproduces the reference 2.5/6 look. */
-export const BLUR_Y_RATIO = CRT_PARAMS.blurY / CRT_PARAMS.blurX;
+function clamp01OrNull(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.min(1, Math.max(0, value));
+}
 
 function clamp01(value: unknown, fallback: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.min(1, Math.max(0, value));
+  return clamp01OrNull(value) ?? fallback;
 }
 
 /** Clamp an untrusted value into the override shape. Missing keys default. */
 export function clampCrtOverrides(value: unknown): CrtOverrides {
   const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  // v0.8.0 stored one linked `softness`; migrate it to independent axes.
+  const legacySoftness = clamp01OrNull(record.softness);
   return {
     scanlineStrength: clamp01(
       record.scanlineStrength,
       DEFAULT_CRT_OVERRIDES.scanlineStrength,
     ),
-    softness: clamp01(record.softness, DEFAULT_CRT_OVERRIDES.softness),
+    hBlur: clamp01(
+      record.hBlur,
+      legacySoftness ?? DEFAULT_CRT_OVERRIDES.hBlur,
+    ),
+    vBlur: clamp01(
+      record.vBlur,
+      legacySoftness !== null
+        ? legacySoftness * BLUR_Y_RATIO
+        : DEFAULT_CRT_OVERRIDES.vBlur,
+    ),
     vignette: clamp01(record.vignette, DEFAULT_CRT_OVERRIDES.vignette),
     ghosting: clamp01(record.ghosting, DEFAULT_CRT_OVERRIDES.ghosting),
   };
 }
 
-/** Expand the four controls into the full shader parameter set. */
+/** Expand the five controls into the full shader parameter set. */
 export function resolveCrtParams(overrides: CrtOverrides): CrtParams {
-  const blurX = overrides.softness * SOFTNESS_MAX_BLUR_X;
   return {
     ...CRT_PARAMS,
     scanlineStrength: overrides.scanlineStrength,
     vignette: overrides.vignette,
     ghosting: overrides.ghosting,
-    blurX,
-    blurY: blurX * BLUR_Y_RATIO,
+    blurX: overrides.hBlur * MAX_BLUR,
+    blurY: overrides.vBlur * MAX_BLUR,
   };
 }
 

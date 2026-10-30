@@ -8,11 +8,12 @@ interface CrtControlsProps {
   onReset: () => void;
 }
 
-const CONTROLS: { key: keyof CrtOverrides; label: string }[] = [
-  { key: 'scanlineStrength', label: 'Scanlines' },
-  { key: 'softness', label: 'Softness' },
-  { key: 'vignette', label: 'Vignette' },
-  { key: 'ghosting', label: 'Ghosting' },
+const CONTROLS: { key: keyof CrtOverrides; label: string; ariaLabel: string }[] = [
+  { key: 'scanlineStrength', label: 'Scanlines', ariaLabel: 'Scanlines' },
+  { key: 'hBlur', label: 'H blur', ariaLabel: 'Horizontal blur' },
+  { key: 'vBlur', label: 'V blur', ariaLabel: 'Vertical blur' },
+  { key: 'vignette', label: 'Vignette', ariaLabel: 'Vignette' },
+  { key: 'ghosting', label: 'Ghosting', ariaLabel: 'Ghosting' },
 ];
 
 export function CrtControls({ values, onChange, onReset }: CrtControlsProps) {
@@ -28,7 +29,7 @@ export function CrtControls({ values, onChange, onReset }: CrtControlsProps) {
 
   return (
     <div role="group" aria-label="CRT settings" className="flex flex-col gap-2">
-      {CONTROLS.map(({ key, label }) => {
+      {CONTROLS.map(({ key, label, ariaLabel }) => {
         const percent = Math.round(draft[key] * 100);
         const commit = (event: SyntheticEvent<HTMLInputElement>) => {
           const value = Number(event.currentTarget.value) / 100;
@@ -47,7 +48,7 @@ export function CrtControls({ values, onChange, onReset }: CrtControlsProps) {
               max={100}
               step={1}
               value={percent}
-              aria-label={label}
+              aria-label={ariaLabel}
               aria-valuetext={`${percent}%`}
               onChange={(event) => {
                 const value = Number(event.target.value) / 100;

@@ -54,4 +54,14 @@ test('tunes CRT parameters while playing and remembers them', async ({ page }) =
   await page.getByRole('button', { name: 'Reset to reference' }).click();
   await expect(page.getByRole('slider', { name: 'Scanlines' })).toHaveValue('100');
   await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
+
+  const horizontal = page.getByRole('slider', { name: 'Horizontal blur' });
+  await horizontal.focus();
+  await horizontal.press('End');
+  const vertical = page.getByRole('slider', { name: 'Vertical blur' });
+  await vertical.focus();
+  await vertical.press('Home');
+  await expect(horizontal).toHaveValue('100');
+  await expect(vertical).toHaveValue('0');
+  await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i);
 });

@@ -30,6 +30,14 @@
 - [x] 5.2 Run `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` and the e2e suite and confirm they pass
 - [x] 5.3 Capture the player at default, minimum and maximum values on the verification box and confirm the picture changes without a reload, the blur stays horizontal-dominant, the panel fits a phone viewport and the console has no shader errors
 
+## 6. Independent blur follow-up
+
+- [x] 6.1 Replace `softness` with normalized `hBlur`/`vBlur` in `params.ts`, map each to `blurX`/`blurY`, migrate stored v0.8.0 `softness`, and verify unit tests cover independent values, migration and clamping
+- [x] 6.2 Replace the Softness control with labelled "H blur" and "V blur" sliders, update component and service tests, and verify the panel still fits the phone bottom sheet
+- [x] 6.3 Update the change's proposal, spec and design for independent blur and the default-anisotropy override, and verify `openspec validate crt-parameter-controls --strict` passes
+- [x] 6.4 Run typecheck, lint, unit tests, build and the e2e suite, then capture independent H/V blur on the verification box and confirm live apply and no shader errors
+- [ ] 6.5 Publish v0.8.1 (version bump, commit, tag) and verify CI, release and Flux
+
 ## Workflow follow-up
 
 - Archive `stabilize-crt-effect-scale` before archiving this change so the `player-crt` `Reference look` base matches the delta.

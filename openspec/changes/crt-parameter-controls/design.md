@@ -28,8 +28,8 @@ fallback but the Emscripten memory FS may not deliver native watch events.
 
 **Goals:**
 
-- Four user-facing controls: scanline strength, beam softness, vignette and
-  ghosting, with the reference values as defaults.
+- Five user-facing controls: scanline strength, horizontal blur, vertical blur,
+  vignette and ghosting, with the reference values as defaults.
 - Changes apply to a running game without restarting it.
 - Per-browser persistence, validation/clamping, and a reset to the reference.
 - Keep the service boundary: the UI never talks to RetroArch, and the shader
@@ -45,21 +45,21 @@ fallback but the Emscripten memory FS may not deliver native watch events.
 
 ## Decisions
 
-### D1. One softness slider, with a fixed anisotropy ratio
+### D1. Independent horizontal and vertical blur sliders
 
-Expose a normalized `softness` in `0..1` and map it to the two shader radii:
+Expose normalized `hBlur` and `vBlur` in `0..1` and map each to its shader
+radius independently:
 
 ```
-blurX = softness * 12.0
-blurY = blurX * (2.5 / 6.0)      // the current reference ratio, 0.4167
+blurX = hBlur * 12.0
+blurY = vBlur * 12.0
 ```
 
-- Default `softness = 0.5` gives the reference `blurX = 6`, `blurY = 2.5`.
-- The vertical radius can never exceed the horizontal one, so the
-  `Anisotropic beam blur` requirement is preserved.
-- A single "Softness" slider is more understandable than two technical blur
-  radii. If separate horizontal/vertical control is requested later, it is an
-  additive advanced control; the mapping is a pure function either way.
+- Default `hBlur = 0.5` gives the reference `blurX = 6`; default
+  `vBlur = 2.5 / 12` (about 0.2083) gives `blurY = 2.5`.
+- The axes are independent, so the user can make the vertical radius larger
+  than the horizontal. The reference default remains horizontal-dominant, and
+  the `Anisotropic beam blur` delta now explicitly permits an override.
 - `scanlineStrength`, `vignette` and `ghosting` pass through directly. The
   tonemap, gamma, mask, grain and flicker parameters are not exposed.
 
@@ -68,15 +68,16 @@ The user-facing type is the overrides, not the full shader params:
 ```ts
 interface CrtOverrides {
   scanlineStrength: number; // 0..1
-  softness: number;         // 0..1
+  hBlur: number;            // 0..1 -> blurX 0..12
+  vBlur: number;            // 0..1 -> blurY 0..12
   vignette: number;         // 0..1
   ghosting: number;         // 0..1
 }
 ```
 
 `resolveCrtParams(overrides)` returns the full `CRT_PARAMS` shape. The pure
-module owns the defaults, clamping and the `softness -> blurX/blurY` mapping.
-The UI shows percentages; the stored values are normalized.
+module owns the defaults, clamping and the `hBlur/vBlur -> blurX/blurY`
+mapping. The UI shows percentages; the stored values are normalized.
 
 ### D2. Per-browser persistence
 
@@ -88,6 +89,9 @@ is explicitly out of scope.
 
 - Parse defensively: missing, malformed, non-finite or out-of-range values fall
   back to the reference defaults; unknown fields are ignored.
+- Migrate the v0.8.0 `softness` shape on read: `hBlur = softness` and
+  `vBlur = softness * (2.5 / 6)`, so values saved before the separate sliders
+  keep their look.
 - Clamp every value on read and write.
 - Guard `typeof localStorage` and try/catch so private mode or tests do not
   break playback; an unavailable store simply keeps the in-memory value.
@@ -130,7 +134,7 @@ not to.
 ### D4. Panel UI
 
 Add a "Tune CRT" control next to the existing TV toggle. It opens a small
-popover, following the `Battery save` pattern, with four native range inputs,
+popover, following the `Battery save` pattern, with five native range inputs,
 a live percentage label each, a "Reset to reference" button and a short
 caption. The TV button remains the on/off toggle; the panel is a separate
 button so the two actions are not confused.
@@ -148,14 +152,14 @@ button so the two actions are not confused.
 
 ### D5. Tests and the service boundary
 
-- `params.test.ts`: defaults, clamping, malformed storage, softness mapping,
-  and the vertical-not-stronger-than-horizontal invariant.
+- `params.test.ts`: defaults, clamping, malformed storage, the v0.8.0
+  `softness` migration, and independent H/V mapping.
 - `preset.test.ts`: builder uses the supplied params and still defaults to the
   reference.
 - Service test: `setCrtParams` before launch stores only; while running with
   CRT on it writes the preset and sends `SET_SHADER`; with CRT off it writes
   but does not load.
-- Component test: the panel renders four labelled controls, updates the
+- Component test: the panel renders five labelled controls, updates the
   settings, resets, and persists.
 - e2e: open the panel, adjust a slider while playing, confirm playback
   continues, reload and confirm the value persists, reset and confirm the
@@ -178,19 +182,22 @@ button so the two actions are not confused.
   memory for the session.
 - [Persisted values are per browser, not per account] -> documented; cloud
   sync is out of scope.
-- [The softness ratio is a product choice] -> it preserves the tuned
-  anisotropy; separate H/V controls can be added later without changing the
-  storage shape.
+- [Independent blur can produce a harsh or vertically smeared look] -> the
+  reference defaults are one click away, every value is clamped, and the spec
+  permits the override deliberately.
+- [v0.8.0 stored values use `softness`] -> the parser migrates them to
+  `hBlur`/`vBlur` with the reference ratio, so existing looks survive.
 
 ## Migration Plan
 
-No data migration. The new key starts empty for existing visitors, so they get
-the reference defaults. Removing the key or the feature returns to the compiled
+The storage key is unchanged; existing v0.8.0 values with `softness` are read
+as `hBlur = softness` and `vBlur = softness * (2.5 / 6)`. New writes use
+`hBlur`/`vBlur`. Removing the key or the feature returns to the compiled
 `CRT_PARAMS` defaults. No backend, schema or deployment change is needed.
 
 ## Open Questions
 
-- The exact softness range (`0..12` frame pixels) and the fixed `2.5/6` ratio
+- The exact H/V ranges (`0..12` frame pixels) and the default vertical value
   may need a tuning pass on the verification box. The mapping is isolated in
   one pure function, so the numbers can change without a spec or storage
   change.

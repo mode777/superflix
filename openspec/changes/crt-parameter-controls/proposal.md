@@ -10,9 +10,10 @@ for a deploy, while the tuned reference stays the default.
 
 ## What Changes
 
-- Add a **CRT controls** panel to the player with four user-facing settings:
-  scanline strength, beam softness (horizontal always at least the vertical
-  component), vignette and ghosting. The current tuned values are the defaults.
+- Add a **CRT controls** panel to the player with five user-facing settings:
+  scanline strength, horizontal blur, vertical blur, vignette and ghosting.
+  The current tuned values are the defaults. The two blur axes are independent;
+  the default remains horizontal-dominant.
 - Apply a change to a running game without restarting it by rewriting the
   emulator's shader preset and asking RetroArch to reload it. When no game is
   running, store the value and apply it at the next launch.

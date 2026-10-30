@@ -34,15 +34,47 @@ soften the sampled picture with the anisotropic beam blur required by the
 - **WHEN** a frame is presented
 - **THEN** no frame or bezel artwork is drawn around the picture
 
+### Requirement: Anisotropic beam blur
+
+By default, the effect SHALL soften the sampled picture with a blur that is
+stronger horizontally than vertically. The blur radius SHALL be expressed in
+fixed frame units so it does not change with the output surface. The blur SHALL
+apply to the base picture and the ghosted halo and SHALL NOT remove the scanline
+modulation. The user-adjustable horizontal and vertical blur values MAY override
+the default ratio.
+
+#### Scenario: High-contrast edge
+
+- **WHEN** the frame contains a high-contrast vertical edge with the default
+  values
+- **THEN** the edge is softened more along the horizontal axis than the
+  vertical axis
+
+#### Scenario: Independent override
+
+- **WHEN** the user sets the horizontal and vertical blur to different values
+- **THEN** each radius follows its own value, including a vertical value
+  greater than the horizontal
+
+#### Scenario: Scanlines preserved
+
+- **WHEN** the blur is applied to a flat field
+- **THEN** the scanline pattern remains visible
+
+#### Scenario: Surface independence
+
+- **WHEN** the same frame is shown at DPR 1 and DPR 3
+- **THEN** the blur radius relative to the picture is the same
+
 ## ADDED Requirements
 
 ### Requirement: Adjustable CRT controls
 
-The player SHALL provide controls for scanline strength, beam softness,
-vignette and ghosting. The reference values SHALL be the defaults. Beam
-softness SHALL keep the vertical blur no stronger than the horizontal blur. The
-shadow mask, tint, gain curve, filmic tonemap, gamma, grain and flicker SHALL
-remain fixed.
+The player SHALL provide controls for scanline strength, horizontal blur,
+vertical blur, vignette and ghosting. The reference values SHALL be the
+defaults. The horizontal and vertical blur SHALL be independently adjustable.
+The shadow mask, tint, gain curve, filmic tonemap, gamma, grain and flicker
+SHALL remain fixed.
 
 #### Scenario: Defaults
 
@@ -51,8 +83,14 @@ remain fixed.
 
 #### Scenario: Adjust a control
 
-- **WHEN** the user changes one of the four controls
+- **WHEN** the user changes one of the five controls
 - **THEN** that effect term follows the new value
+
+#### Scenario: Independent blur
+
+- **WHEN** the user sets the horizontal and vertical blur to different values
+- **THEN** each radius follows its own value, including a vertical value
+  greater than the horizontal
 
 #### Scenario: Fixed terms
 

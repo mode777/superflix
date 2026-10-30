@@ -303,7 +303,8 @@ export class NostalgistEmulatorService implements EmulatorService {
     const current = this.settings.crtParams;
     if (
       next.scanlineStrength === current.scanlineStrength &&
-      next.softness === current.softness &&
+      next.hBlur === current.hBlur &&
+      next.vBlur === current.vBlur &&
       next.vignette === current.vignette &&
       next.ghosting === current.ghosting
     ) {
