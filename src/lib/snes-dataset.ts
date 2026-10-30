@@ -76,6 +76,30 @@ export function normalizeNoIntroName(name: string): string {
     .trim();
 }
 
+/** One `index.json` entry: the display title as key, the dataset folder slug as value. */
+export interface DatasetTitleEntry {
+  title: string;
+  slug: string;
+}
+
+/**
+ * First entry whose title equals the given title under the shared
+ * normalization (leading-article move, accent folding, case and punctuation
+ * collapse) — the published `index.json` keys are display titles, not slugs,
+ * so both sides must be normalized before comparing. Null when nothing matches.
+ */
+export function matchDatasetTitle(
+  title: string,
+  entries: readonly DatasetTitleEntry[],
+): DatasetTitleEntry | null {
+  const normalized = datasetSlugFromTitle(title);
+  if (!normalized) return null;
+  for (const entry of entries) {
+    if (datasetSlugFromTitle(entry.title) === normalized) return entry;
+  }
+  return null;
+}
+
 /** Dataset `release_dates` keys to try, most specific first, for a catalog region. */
 export function regionToDateKeys(region: Region): string[] {
   switch (region) {

@@ -1,7 +1,7 @@
 {
   "name": "superflix",
   "private": true,
-  "version": "0.8.2",
+  "version": "0.8.3",
   "type": "module",
   "description": "A self-hosted Netflix-style catalog and browser player for Super Nintendo games.",
   "license": "MIT",

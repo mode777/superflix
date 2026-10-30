@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { fetchDatasetImages, fetchDatasetRecord, resolveDatasetSlug } from './dataset';
+import { fetchDatasetImages, fetchDatasetRecord, listDatasetTitles, resolveDatasetSlug } from './dataset';
 import { DATASET_BASE_URL } from '@/lib/snes-dataset';
 
 const base = DATASET_BASE_URL;
@@ -32,11 +32,11 @@ describe('resolveDatasetSlug', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the normalized title when the checksum is unknown', async () => {
+  it('falls back to the title index when the checksum is unknown', async () => {
     const fetcher = vi.fn(async (url: string) => {
       if (url.endsWith('by-crc.json')) return jsonResponse({});
       expect(url).toBe(`${base}/index.json`);
-      return jsonResponse({ 'chrono-trigger': 'chrono-trigger' });
+      return jsonResponse({ 'Chrono Trigger': 'chrono-trigger' });
     });
 
     await expect(
@@ -45,13 +45,40 @@ describe('resolveDatasetSlug', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it('matches display-title keys against the published index shape', async () => {
+    // Regression: the published index.json maps display titles to slugs, so a
+    // slugified key access never hits; matching must normalize both sides.
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith('by-crc.json')) return jsonResponse({});
+      return jsonResponse({
+        '2020 Super Baseball': '2020-super-baseball',
+        'Super Metroid': 'super-metroid',
+      });
+    });
+
+    await expect(
+      resolveDatasetSlug(undefined, 'super metroid (Japan, USA) [!]', fetcher),
+    ).resolves.toBe('super-metroid');
+  });
+
   it('applies the article fix when matching titles', async () => {
     const fetcher = vi.fn(async (url: string) => {
       if (url.endsWith('by-crc.json')) return jsonResponse({});
-      return jsonResponse({ 'the-combatribes': 'the-combatribes' });
+      return jsonResponse({ 'Combatribes, The': 'the-combatribes' });
     });
 
     await expect(resolveDatasetSlug(undefined, 'Combatribes, The (USA)', fetcher)).resolves.toBe(
+      'the-combatribes',
+    );
+  });
+
+  it('matches a leading-article title against a trailing-article index key', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith('by-crc.json')) return jsonResponse({});
+      return jsonResponse({ 'Combatribes, The': 'the-combatribes' });
+    });
+
+    await expect(resolveDatasetSlug(undefined, 'The Combatribes (USA)', fetcher)).resolves.toBe(
       'the-combatribes',
     );
   });
@@ -87,6 +114,40 @@ describe('resolveDatasetSlug', () => {
     await resolveDatasetSlug('AAAAAAAA', 'C', fetcher);
 
     expect(fetcher).toHaveBeenCalledTimes(2); // by-crc once, index once
+  });
+});
+
+describe('listDatasetTitles', () => {
+  it('lists the title index sorted alphabetically', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      expect(url).toBe(`${base}/index.json`);
+      return jsonResponse({
+        'Zoop!': 'zoop',
+        'Chrono Trigger': 'chrono-trigger',
+        '2020 Super Baseball': '2020-super-baseball',
+      });
+    });
+
+    await expect(listDatasetTitles(fetcher)).resolves.toEqual([
+      { title: '2020 Super Baseball', slug: '2020-super-baseball' },
+      { title: 'Chrono Trigger', slug: 'chrono-trigger' },
+      { title: 'Zoop!', slug: 'zoop' },
+    ]);
+  });
+
+  it('reuses the cached index across calls', async () => {
+    const fetcher = vi.fn(async () => jsonResponse({ 'Chrono Trigger': 'chrono-trigger' }));
+
+    await listDatasetTitles(fetcher);
+    await listDatasetTitles(fetcher);
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects when the index cannot be fetched', async () => {
+    const fetcher = vi.fn(async () => jsonResponse({}, 503));
+
+    await expect(listDatasetTitles(fetcher)).rejects.toThrow('HTTP 503');
   });
 });
 

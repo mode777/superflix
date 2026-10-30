@@ -120,8 +120,35 @@ describe('enrichGame', () => {
       },
     );
     const files = updateRecord.mock.calls[0][3] as { cover_image: File; screenshots: File[] };
-    expect(files.cover_image.name).toBe('slug-thumb.png');
+    expect(files.cover_image.name).toBe('slug-box.png'); // big box wins over thumb
     expect(files.screenshots[0]?.name).toBe('slug-snap.png');
+  });
+
+  it('keeps the dataset big box even when the provider offers a cover', async () => {
+    mockDataset({ images: [datasetImage('box'), datasetImage('snap')] });
+    vi.mocked(buildArtworkPayload).mockResolvedValue({
+      cover: image('boxart'),
+      screenshots: [image('title')],
+    });
+
+    const result = await enrichGame(input);
+
+    expect(result.cover).toBe(true);
+    expect(buildArtworkPayload).toHaveBeenCalledWith('Chrono Trigger (USA)', { skipCover: true });
+    const files = updateRecord.mock.calls[0][3] as { cover_image: File };
+    expect(files.cover_image.name).toBe('slug-box.png');
+  });
+
+  it('uses the dataset thumb only after the provider yields no cover', async () => {
+    mockDataset({ images: [datasetImage('thumb')] });
+    vi.mocked(buildArtworkPayload).mockResolvedValue(null); // no complementary boxart
+
+    const result = await enrichGame(input);
+
+    expect(result.cover).toBe(true);
+    expect(buildArtworkPayload).toHaveBeenCalledWith('Chrono Trigger (USA)', { skipCover: false });
+    const files = updateRecord.mock.calls[0][3] as { cover_image: File };
+    expect(files.cover_image.name).toBe('slug-thumb.png');
   });
 
   it('falls back to the libretro provider for a missing screenshot', async () => {
@@ -134,7 +161,8 @@ describe('enrichGame', () => {
     const result = await enrichGame(input);
 
     expect(result.screenshots).toBe(1);
-    expect(buildArtworkPayload).toHaveBeenCalledWith('Chrono Trigger (USA)', { skipCover: true });
+    // No dataset box: the provider gets the first chance at the cover…
+    expect(buildArtworkPayload).toHaveBeenCalledWith('Chrono Trigger (USA)', { skipCover: false });
     const files = updateRecord.mock.calls[0][3] as { screenshots: File[] };
     expect(files.screenshots).toHaveLength(1);
   });
@@ -185,6 +213,43 @@ describe('enrichGame', () => {
 
     expect(result).toEqual({ resolved: false, metadata: false, cover: false, screenshots: 0 });
     expect(updateRecord).not.toHaveBeenCalled();
+  });
+
+  it('enriches from an explicit manual-match slug without resolving', async () => {
+    mockDataset({ slug: 'chosen-game' });
+
+    const result = await enrichGame({ ...input, slug: 'chosen-game' });
+
+    expect(result).toEqual({ resolved: true, metadata: true, cover: true, screenshots: 1 });
+    expect(resolveDatasetSlug).not.toHaveBeenCalled();
+    expect(updateRecord).toHaveBeenCalledWith(
+      'games',
+      'game-1',
+      expect.objectContaining({ metadata_id: 'chosen-game', metadata_source: 'snes-dataset' }),
+      expect.anything(),
+    );
+  });
+
+  it('reports the dead manual-match slug instead of falling back to checksum', async () => {
+    mockDataset({ slug: 'gone-game', record: null });
+
+    const result = await enrichGame({ ...input, slug: 'gone-game' });
+
+    expect(result).toEqual({ resolved: false, metadata: false, cover: false, screenshots: 0 });
+    expect(resolveDatasetSlug).not.toHaveBeenCalled();
+    expect(updateRecord).not.toHaveBeenCalled();
+  });
+
+  it('keeps the manual cover on an explicit match while updating the rest', async () => {
+    mockDataset();
+    const result = await enrichGame({ ...input, slug: 'chrono-trigger', manualCover: true });
+
+    expect(result.cover).toBe(false);
+    const fields = updateRecord.mock.calls[0][2] as Record<string, unknown>;
+    const files = updateRecord.mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.metadata_id).toBe('chrono-trigger');
+    expect(fields.metadata_source).toBeUndefined();
+    expect(files.cover_image).toBeUndefined();
   });
 
   it('verifies a stale metadataId hint before falling back to the checksum', async () => {

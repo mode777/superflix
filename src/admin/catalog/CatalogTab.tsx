@@ -4,6 +4,7 @@ import { adminClient } from '@/admin/lib/pb';
 import { replaceGameRom } from '@/admin/lib/importer';
 import { describeEnrichment, enrichGame } from '@/admin/metadata/enrich';
 import { uploadManualCover } from '@/admin/metadata/artwork';
+import { DatasetMatchModal, type DatasetMatch } from '@/admin/DatasetMatchModal';
 import type { Region } from '@/types/games';
 import { Dialog } from '@/components/Dialog';
 import { formatBytes } from '@/lib/format';
@@ -66,6 +67,7 @@ function GameEditor({
   const [progress, setProgress] = useState(0);
   const [coverBusy, setCoverBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
 
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -143,6 +145,22 @@ function GameEditor({
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const matchInDataset = async (match: DatasetMatch) => {
+    setMatchOpen(false);
+    const result = await enrichGame({
+      id: str(record.id),
+      slug: match.slug,
+      title: str(record.title),
+      region: (str(record.region) || 'NTSC-U') as Region,
+      manualCover: str(record.metadata_source) === 'manual',
+    });
+    const changed = result.resolved && (result.metadata || result.cover || result.screenshots > 0);
+    showToast(`Dataset match: ${describeEnrichment(result)}.`, {
+      kind: changed ? 'success' : 'info',
+    });
+    if (changed) onSaved();
   };
 
   return (
@@ -291,12 +309,27 @@ function GameEditor({
           {refreshing ? 'Syncing…' : 'Sync from dataset'}
         </button>
 
+        <button
+          type="button"
+          onClick={() => setMatchOpen(true)}
+          className="rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-body-md font-semibold text-on-surface transition hover:border-white/25"
+        >
+          Match in dataset…
+        </button>
+
         {replacing && (
           <span className="text-body-md text-on-surface-variant">
             Uploading… {progress}%
           </span>
         )}
       </div>
+
+      <DatasetMatchModal
+        open={matchOpen}
+        initialQuery={str(record.title)}
+        onSelect={(match) => void matchInDataset(match)}
+        onDismiss={() => setMatchOpen(false)}
+      />
     </section>
   );
 }

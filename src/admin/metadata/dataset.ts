@@ -1,8 +1,9 @@
 import {
   DATASET_BASE_URL,
-  datasetSlugFromTitle,
+  matchDatasetTitle,
   normalizeNoIntroName,
   type DatasetRecord,
+  type DatasetTitleEntry,
 } from '@/lib/snes-dataset';
 
 export type DatasetFetcher = (url: string) => Promise<Response>;
@@ -29,6 +30,7 @@ async function jsonMap(fetcher: DatasetFetcher, path: string): Promise<Record<st
 interface IndexCaches {
   byCrc?: Promise<Record<string, string>>;
   index?: Promise<Record<string, string>>;
+  titles?: Promise<DatasetTitleEntry[]>;
 }
 
 const cachesByFetcher = new WeakMap<DatasetFetcher, IndexCaches>();
@@ -61,9 +63,31 @@ function loadIndex(fetcher: DatasetFetcher): Promise<Record<string, string>> {
 }
 
 /**
+ * Every title index entry as `{ title, slug }`, sorted alphabetically by
+ * display title — the manual match picker's data source. Reuses the session
+ * cache: the index is fetched once per fetcher, the sorted list memoized with
+ * it. Network failures reject.
+ */
+export function listDatasetTitles(
+  fetcher: DatasetFetcher = defaultFetcher,
+): Promise<DatasetTitleEntry[]> {
+  const caches = cachesFor(fetcher);
+  caches.titles ??= loadIndex(fetcher).then((index) =>
+    Object.entries(index)
+      .map(([title, slug]) => ({ title, slug }))
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  );
+  caches.titles.catch(() => {
+    caches.titles = undefined;
+  });
+  return caches.titles;
+}
+
+/**
  * Resolve a game to its dataset slug: by exact headerless CRC32 first
- * (`by-crc.json`), then by normalized title (`index.json`). Returns null when
- * the game is not in the dataset; network failures reject.
+ * (`by-crc.json`), then by matching the cleaned title against the title
+ * index's display-title entries (`index.json`). Returns null when the game is
+ * not in the dataset; network failures reject.
  */
 export async function resolveDatasetSlug(
   crc32: string | undefined,
@@ -81,7 +105,8 @@ export async function resolveDatasetSlug(
   if (!base) return null;
 
   const index = await loadIndex(fetcher);
-  return index[datasetSlugFromTitle(base)] ?? null;
+  const entries = Object.entries(index).map(([title, slug]) => ({ title, slug }));
+  return matchDatasetTitle(base, entries)?.slug ?? null;
 }
 
 /** Full metadata for one slug; null when the folder has no `data.json`. */

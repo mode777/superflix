@@ -24,6 +24,8 @@ export interface EnrichGameInput {
   crc32?: string;
   title: string;
   region?: Region;
+  /** Explicitly chosen dataset slug (manual match): skips resolution entirely. */
+  slug?: string;
   /** Dataset slug recorded by a previous enrichment; verified before reuse. */
   metadataId?: string;
   /** Exact No-Intro name, used only for the complementary libretro artwork fallback. */
@@ -88,20 +90,19 @@ async function applyRecord(
   const metadata = Object.keys(fields).length > 0;
 
   const datasetImages = await fetchDatasetImages(slug, record.images, fetcher);
-  const coverSource = input.manualCover
-    ? null
-    : (datasetImages.find((image) => image.kind === 'thumb') ??
-      datasetImages.find((image) => image.kind === 'box') ??
-      null);
-  const cover = coverSource ? await downscale(coverSource, MAX_COVER_WIDTH) : null;
+  // Cover order (spec: big box preferred over thumbnail): dataset box first,
+  // then the complementary provider's boxart, and the small thumb only when
+  // neither yields a cover.
+  const boxImage = datasetImages.find((image) => image.kind === 'box') ?? null;
+  const thumbImage = datasetImages.find((image) => image.kind === 'thumb') ?? null;
   const snap = datasetImages.find((image) => image.kind === 'snap') ?? null;
+  let finalCover = input.manualCover ? null : await downscale(boxImage, MAX_COVER_WIDTH);
   const screenshots: ArtworkImage[] = [];
   const scaledSnap = await downscale(snap, MAX_SCREENSHOT_WIDTH);
   if (scaledSnap) screenshots.push(scaledSnap);
 
   // Complementary provider fills what the dataset lacks: extra screenshots
-  // (title screen) and the cover when the dataset has none.
-  let finalCover = cover;
+  // (title screen) and the cover when the dataset has no big box.
   if (!input.manualCover && (!finalCover || screenshots.length < MAX_SCREENSHOTS)) {
     const fallbackName = noIntroNameFromRecord(record, input.crc32) ?? input.title;
     const fallback = await buildArtworkPayload(fallbackName, { skipCover: Boolean(finalCover) });
@@ -112,6 +113,10 @@ async function applyRecord(
         screenshots.push(image);
       }
     }
+  }
+
+  if (!input.manualCover && !finalCover && thumbImage) {
+    finalCover = await downscale(thumbImage, MAX_COVER_WIDTH);
   }
 
   if (!metadata && !finalCover && screenshots.length === 0) {
@@ -154,6 +159,15 @@ export async function enrichGame(
   const fetcher = options.fetcher ?? defaultFetcher;
 
   try {
+    // An explicit manual match skips resolution entirely: the admin chose this
+    // slug, so a missing record reports "not in dataset" instead of silently
+    // resolving elsewhere.
+    if (input.slug) {
+      const chosen = await fetchDatasetRecord(input.slug, fetcher);
+      if (!chosen) return noResult;
+      return await applyRecord(input, input.slug, chosen, fetcher);
+    }
+
     // A slug from a previous run is verified first; stale slugs (including
     // pre-dataset records whose metadata_id holds a No-Intro name) fall
     // through to checksum lookup.

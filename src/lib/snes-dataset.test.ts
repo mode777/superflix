@@ -4,10 +4,12 @@ import {
   DATASET_BASE_URL,
   datasetSlugFromTitle,
   mapDatasetRecord,
+  matchDatasetTitle,
   normalizeNoIntroName,
   parseLooseDate,
   regionToDateKeys,
   releaseDateForRegion,
+  type DatasetTitleEntry,
 } from './snes-dataset';
 
 describe('datasetSlugFromTitle', () => {
@@ -48,6 +50,52 @@ describe('normalizeNoIntroName', () => {
 
   it('keeps punctuation inside the title', () => {
     expect(normalizeNoIntroName('U.N. Squadron (USA)')).toBe('U.N. Squadron');
+  });
+});
+
+describe('matchDatasetTitle', () => {
+  const index: DatasetTitleEntry[] = [
+    { title: '2020 Super Baseball', slug: '2020-super-baseball' },
+    { title: 'Chrono Trigger', slug: 'chrono-trigger' },
+    { title: 'Combatribes, The', slug: 'the-combatribes' },
+    { title: 'Pokémon Red', slug: 'pokemon-red' },
+  ];
+
+  it('matches display-title keys case-insensitively', () => {
+    expect(matchDatasetTitle('chrono trigger', index)).toEqual({
+      title: 'Chrono Trigger',
+      slug: 'chrono-trigger',
+    });
+  });
+
+  it('ignores punctuation differences', () => {
+    expect(matchDatasetTitle('2020 Super Baseball!', index)?.slug).toBe('2020-super-baseball');
+  });
+
+  it('ignores diacritics', () => {
+    expect(matchDatasetTitle('Pokemon Red', index)?.slug).toBe('pokemon-red');
+  });
+
+  it('matches the leading-article form against a trailing article key', () => {
+    expect(matchDatasetTitle('The Combatribes', index)?.slug).toBe('the-combatribes');
+    expect(matchDatasetTitle('Combatribes, The', index)?.slug).toBe('the-combatribes');
+  });
+
+  it('returns the first matching entry on normalization collisions', () => {
+    const colliding: DatasetTitleEntry[] = [
+      { title: 'Game: Version A', slug: 'game-version-a' },
+      { title: 'Game — Version A', slug: 'game-version-a-2' },
+    ];
+    expect(matchDatasetTitle('game version a', colliding)?.slug).toBe('game-version-a');
+  });
+
+  it('returns null when nothing matches', () => {
+    expect(matchDatasetTitle('Unknown Game', index)).toBeNull();
+  });
+
+  it('returns null for an unusable title', () => {
+    expect(matchDatasetTitle('', index)).toBeNull();
+    expect(matchDatasetTitle('   ', index)).toBeNull();
   });
 });
 

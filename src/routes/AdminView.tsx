@@ -14,13 +14,21 @@ import { useRomStore } from '@/features/console/romStore';
 import { useAdminAuthStore } from '@/admin/lib/authStore';
 import { adminAuth } from '@/admin/lib/pb-auth';
 import { precheckImport, createCatalogRecord, attachVariant, buildCatalogDraft } from '@/admin/lib/importer';
-import { describeEnrichment } from '@/admin/metadata/enrich';
+import { describeEnrichment, enrichGame } from '@/admin/metadata/enrich';
+import { DatasetMatchModal, type DatasetMatch } from '@/admin/DatasetMatchModal';
 import { cleanDatName, deriveRegion } from '@/features/games/slug';
-import type { Game } from '@/types/games';
+import type { Game, Region } from '@/types/games';
 
 const ENRICHMENT_DATS = ['developer', 'publisher', 'genre', 'releaseyear', 'maxusers'] as const;
 
 type AdminTab = 'identify' | 'catalog';
+
+/** The imported game awaiting a manual dataset match. */
+interface MatchTarget {
+  gameId: string;
+  title: string;
+  region: Region;
+}
 
 type ImportState =
   | { status: 'idle' }
@@ -153,6 +161,7 @@ export default function AdminView() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [importState, setImportState] = useState<ImportState>({ status: 'idle' });
+  const [matchTarget, setMatchTarget] = useState<MatchTarget | null>(null);
 
   const handleFile = async (next: File) => {
     setFile(next);
@@ -195,7 +204,8 @@ export default function AdminView() {
   const handleImport = async () => {
     if (!file || !result) return;
 
-    const slug = buildCatalogDraft(result, file.name).slug;
+    const draft = buildCatalogDraft(result, file.name);
+    const slug = draft.slug;
     setImportState({ status: 'checking' });
 
     try {
@@ -235,11 +245,40 @@ export default function AdminView() {
       showToast(`Added ${game.title} to the catalog — ${describeEnrichment(enrichment)}.`, {
         kind: 'success',
       });
+      // The import succeeded but enrichment could not resolve the game: offer
+      // the manual dataset match (spec: modal offered after an unresolved
+      // import). Dismissing leaves the record as imported.
+      if (!enrichment.resolved && !enrichment.unavailable) {
+        setMatchTarget({ gameId: game.id, title: game.title, region: draft.region });
+      }
     } catch (err) {
       setImportState({
         status: 'error',
         message: err instanceof Error ? err.message : 'Could not add the ROM to the catalog.',
       });
+    }
+  };
+
+  const handleManualMatch = async (match: DatasetMatch) => {
+    const target = matchTarget;
+    setMatchTarget(null);
+    if (!target) return;
+
+    const enrichment = await enrichGame({
+      id: target.gameId,
+      slug: match.slug,
+      title: target.title,
+      region: target.region,
+    });
+    const changed =
+      enrichment.resolved && (enrichment.metadata || enrichment.cover || enrichment.screenshots > 0);
+    showToast(`Dataset match: ${describeEnrichment(enrichment)}.`, {
+      kind: changed ? 'success' : 'info',
+    });
+    if (changed) {
+      void queryClient.invalidateQueries({ queryKey: ['games'] });
+      void queryClient.invalidateQueries({ queryKey: ['game'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-games'] });
     }
   };
 
@@ -545,6 +584,13 @@ export default function AdminView() {
             )}
           </>
         )}
+
+        <DatasetMatchModal
+          open={Boolean(matchTarget)}
+          initialQuery={matchTarget?.title ?? ''}
+          onSelect={(match) => void handleManualMatch(match)}
+          onDismiss={() => setMatchTarget(null)}
+        />
       </main>
     </>
   );
