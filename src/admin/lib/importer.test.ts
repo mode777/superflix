@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RomIdentification } from '@/lib/snes/types';
+import type { ArtworkImage } from '../metadata/provider';
 
 const mocks = vi.hoisted(() => ({
   getFirstListItem: vi.fn(),
@@ -31,18 +32,17 @@ vi.mock('./upload', async (importOriginal) => {
   };
 });
 
-const enrichGame = vi.fn(
-  async () => ({ resolved: false, metadata: false, cover: false, screenshots: 0 }),
-);
-vi.mock('../metadata/enrich', () => ({ enrichGame }));
-
+const importer = await import('./importer');
 const {
   attachVariant,
   buildCatalogDraft,
+  commitStagedDrafts,
   createCatalogRecord,
   precheckImport,
   toGameFields,
-} = await import('./importer');
+} = importer;
+type StagedDraft = import('./importer').StagedDraft;
+const { AuthExpiredError, UploadError } = await import('./upload');
 
 const identified: RomIdentification = {
   fileSize: 524288,
@@ -99,9 +99,25 @@ function makeFile(bytes = 1024) {
   return new File([new Uint8Array(bytes)], 'smw.sfc', { type: 'application/octet-stream' });
 }
 
+function stagedDraft(overrides: Partial<StagedDraft> = {}): StagedDraft {
+  return {
+    values: buildCatalogDraft(identified, 'smw.sfc'),
+    identification: identified,
+    file: makeFile(),
+    ...overrides,
+  };
+}
+
+const artwork = (name: string): ArtworkImage => ({
+  blob: new Blob([name], { type: 'image/png' }),
+  fileName: name,
+  kind: 'boxart',
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.create.mockResolvedValue({});
+  mocks.getFirstListItem.mockRejectedValue({ status: 404 });
 });
 
 describe('precheckImport', () => {
@@ -132,8 +148,6 @@ describe('precheckImport', () => {
   });
 
   it('returns create when neither exists', async () => {
-    mocks.getFirstListItem.mockRejectedValue({ status: 404 });
-
     await expect(precheckImport('new-game', 'AABBCCDD')).resolves.toEqual({ kind: 'create' });
   });
 
@@ -185,21 +199,18 @@ describe('buildCatalogDraft', () => {
 });
 
 describe('createCatalogRecord', () => {
-  it('uploads the game and creates a primary ROM record', async () => {
+  it('uploads the reviewed draft and creates a primary ROM record', async () => {
     mocks.uploadRecord.mockResolvedValue({
       id: 'g1',
       slug: 'super-mario-world',
       title: 'Super Mario World',
     });
 
+    const draft = stagedDraft();
     const progress = vi.fn();
-    const result = await createCatalogRecord(identified, makeFile(), progress);
+    const { game } = await createCatalogRecord(draft, progress);
 
-    expect(result.game).toEqual({
-      id: 'g1',
-      slug: 'super-mario-world',
-      title: 'Super Mario World',
-    });
+    expect(game).toEqual({ id: 'g1', slug: 'super-mario-world', title: 'Super Mario World' });
 
     const [collection, fields, files, callback] = mocks.uploadRecord.mock.calls[0]!;
     expect(collection).toBe('games');
@@ -224,21 +235,59 @@ describe('createCatalogRecord', () => {
       is_primary: true,
       header: JSON.stringify(identified.header),
     });
-    expect(enrichGame).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'g1',
-        crc32: 'B19ED489',
-        title: 'Super Mario World',
-        noIntroName: 'Super Mario World (USA)',
-      }),
-    );
+  });
+
+  it('sends edited values, not the identification defaults', async () => {
+    mocks.uploadRecord.mockResolvedValue({ id: 'g1', slug: 'x', title: 'X' });
+
+    const draft = stagedDraft({
+      values: { ...buildCatalogDraft(identified, 'smw.sfc'), title: 'Edited Title', players: '4' },
+    });
+    await createCatalogRecord(draft);
+
+    const fields = mocks.uploadRecord.mock.calls[0]![1] as Record<string, unknown>;
+    expect(fields.title).toBe('Edited Title');
+    expect(fields.players).toBe('4');
+    expect(fields.genre).toBe('Platform'); // untouched values pass through
+  });
+
+  it('uploads the previewed artwork and records dataset provenance', async () => {
+    mocks.uploadRecord.mockResolvedValue({ id: 'g1', slug: 'x', title: 'X' });
+
+    const draft = stagedDraft({
+      metadataId: 'super-mario-world',
+      cover: artwork('box.png'),
+      screenshots: [artwork('snap-1.png'), artwork('snap-2.png')],
+    });
+    await createCatalogRecord(draft);
+
+    const [collection, fields, files] = mocks.uploadRecord.mock.calls[0]!;
+    expect(collection).toBe('games');
+    expect(fields).toMatchObject({
+      metadata_source: 'snes-dataset',
+      metadata_id: 'super-mario-world',
+      scraped_at: expect.any(String),
+    });
+    const parts = files as { cover_image: File; screenshots: File[] };
+    expect(parts.cover_image.name).toBe('box.png');
+    expect(parts.screenshots.map((file) => file.name)).toEqual(['snap-1.png', 'snap-2.png']);
+  });
+
+  it('omits artwork parts and provenance for identification-only drafts', async () => {
+    mocks.uploadRecord.mockResolvedValue({ id: 'g1', slug: 'x', title: 'X' });
+
+    await createCatalogRecord(stagedDraft());
+
+    const [, fields, files] = mocks.uploadRecord.mock.calls[0]!;
+    expect(fields.metadata_source).toBeUndefined();
+    expect(files).toEqual({ rom: expect.any(File) });
   });
 
   it('stores the headerless image for copier-headered files', async () => {
     mocks.uploadRecord.mockResolvedValue({ id: 'g1', slug: 'x', title: 'X' });
 
     const headered = new File([new Uint8Array(512 + 32768)], 'headered.smc');
-    await createCatalogRecord(identified, headered);
+    await createCatalogRecord(stagedDraft({ file: headered }));
 
     const files = mocks.uploadRecord.mock.calls[0]![2];
     expect((files.rom as File).size).toBe(32768);
@@ -251,8 +300,7 @@ describe('attachVariant', () => {
 
     await attachVariant(
       { id: 'g1', slug: 'super-mario-world', title: 'Super Mario World' },
-      identified,
-      makeFile(),
+      stagedDraft(),
     );
 
     const [collection, fields, files] = mocks.uploadRecord.mock.calls[0]!;
@@ -269,5 +317,134 @@ describe('toGameFields', () => {
 
     expect(fields.release).toBeUndefined();
     expect(fields.rom_header).toBeUndefined();
+  });
+});
+
+describe('commitStagedDrafts', () => {
+  const item = (id: string, crc: string, overrides: Partial<StagedDraft> = {}) => ({
+    id,
+    draft: stagedDraft({
+      values: { ...buildCatalogDraft(identified, 'smw.sfc'), crc32: crc },
+      file: makeFile(),
+      ...overrides,
+    }),
+  });
+
+  it('creates each ready draft and reports per-entry and total progress', async () => {
+    mocks.uploadRecord.mockImplementation(async (_collection, _fields, _files, onProgress) => {
+      onProgress?.(50);
+      onProgress?.(100);
+      return { id: 'g1', slug: 'super-mario-world', title: 'Super Mario World' };
+    });
+
+    const entryStates: Array<[string, string]> = [];
+    const entryProgress: Array<[string, number]> = [];
+    const totalProgress: number[] = [];
+    const summary = await commitStagedDrafts([item('a', 'CRC00001'), item('b', 'CRC00002')], {
+      onEntryState: (id, status) => entryStates.push([id, status]),
+      onEntryProgress: (id, percent) => entryProgress.push([id, percent]),
+      onTotalProgress: (fraction) => totalProgress.push(fraction),
+    });
+
+    expect(summary).toEqual({ added: 2, duplicates: 0, variants: 0, failed: 0 });
+    expect(mocks.uploadRecord).toHaveBeenCalledTimes(2);
+    expect(entryStates.filter(([, status]) => status === 'done')).toEqual([
+      ['a', 'done'],
+      ['b', 'done'],
+    ]);
+    // Each upload reports real percent steps; every entry ends at 100.
+    expect(entryProgress.filter(([, percent]) => percent === 50)).toEqual([
+      ['a', 50],
+      ['b', 50],
+    ]);
+    expect(entryProgress.at(-2)).toEqual(['b', 100]);
+    expect(totalProgress.at(-1)).toBe(1);
+  });
+
+  it('reports a catalog duplicate without writing', async () => {
+    mocks.getFirstListItem.mockResolvedValue({
+      id: 'g0',
+      slug: 'super-mario-world',
+      title: 'Super Mario World',
+    });
+
+    const states: Array<Record<string, unknown>> = [];
+    const summary = await commitStagedDrafts([item('a', 'B19ED489')], {
+      onEntryState: (id, status, data) => states.push({ id, status, ...data }),
+    });
+
+    expect(summary).toEqual({ added: 0, duplicates: 1, variants: 0, failed: 0 });
+    expect(mocks.uploadRecord).not.toHaveBeenCalled();
+    expect(states.at(-1)).toEqual({
+      id: 'a',
+      status: 'duplicate',
+      result: { slug: 'super-mario-world', title: 'Super Mario World' },
+    });
+  });
+
+  it('attaches a slug-collision draft as a variant', async () => {
+    mocks.getFirstListItem
+      .mockRejectedValueOnce({ status: 404 }) // CRC miss
+      .mockResolvedValueOnce({ id: 'g2', slug: 'super-mario-world', title: 'Super Mario World' });
+    mocks.uploadRecord.mockResolvedValue({ id: 'r1' });
+
+    const states: Array<Record<string, unknown>> = [];
+    const summary = await commitStagedDrafts([item('a', 'NEWCRC001')], {
+      onEntryState: (id, status, data) => states.push({ id, status, ...data }),
+    });
+
+    expect(summary).toEqual({ added: 0, variants: 1, duplicates: 0, failed: 0 });
+    const [collection] = mocks.uploadRecord.mock.calls[0]!;
+    expect(collection).toBe('roms');
+    expect(states.at(-1)).toMatchObject({ id: 'a', status: 'variant' });
+  });
+
+  it('resolves the same CRC32 twice in one batch as a duplicate of the first commit', async () => {
+    mocks.uploadRecord
+      .mockResolvedValueOnce({ id: 'g1', slug: 'super-mario-world', title: 'Super Mario World' })
+      .mockResolvedValue({ id: 'g9', slug: 'x', title: 'X' });
+
+    const summary = await commitStagedDrafts([
+      item('a', 'B19ED489'),
+      item('b', 'B19ED489'),
+    ]);
+
+    expect(summary).toEqual({ added: 1, duplicates: 1, variants: 0, failed: 0 });
+    expect(mocks.uploadRecord).toHaveBeenCalledTimes(1); // only the first commits
+    // The second item never consults the catalog: the batch map settles it.
+    expect(mocks.getFirstListItem).toHaveBeenCalledTimes(2);
+  });
+
+  it('isolates a failing entry and keeps committing the rest', async () => {
+    mocks.uploadRecord
+      .mockRejectedValueOnce(new UploadError(500, 'Backend unreachable'))
+      .mockResolvedValue({ id: 'g2', slug: 'super-mario-world', title: 'Super Mario World' });
+
+    const errors: Array<Record<string, unknown>> = [];
+    const summary = await commitStagedDrafts([item('a', 'CRC00001'), item('b', 'CRC00002')], {
+      onEntryState: (id, status, data) => {
+        if (status === 'error') errors.push({ id, ...data });
+      },
+    });
+
+    expect(summary).toEqual({ added: 1, duplicates: 0, variants: 0, failed: 1 });
+    expect(mocks.uploadRecord).toHaveBeenCalledTimes(2);
+    expect(errors).toEqual([{ id: 'a', error: 'Backend unreachable' }]);
+  });
+
+  it('stops the batch once when the admin session has expired', async () => {
+    mocks.uploadRecord.mockRejectedValue(new AuthExpiredError());
+
+    const errors: Array<Record<string, unknown>> = [];
+    const summary = await commitStagedDrafts([item('a', 'CRC00001'), item('b', 'CRC00002')], {
+      onEntryState: (id, status, data) => {
+        if (status === 'error') errors.push({ id, ...data });
+      },
+    });
+
+    expect(summary).toEqual({ added: 0, duplicates: 0, variants: 0, failed: 2 });
+    expect(mocks.uploadRecord).toHaveBeenCalledTimes(1); // the rest would fail auth too
+    expect(errors).toHaveLength(2);
+    expect(errors.every((entry) => entry.error === 'Your admin session expired. Sign in again.')).toBe(true);
   });
 });

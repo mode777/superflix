@@ -44,9 +44,59 @@ export interface EnrichmentResult {
   unavailable?: boolean;
 }
 
+export interface EnrichmentPreview {
+  /** The game was identified in the dataset. */
+  resolved: boolean;
+  /** The dataset slug the draft resolved to (manual match, hint, or checksum/title). */
+  slug?: string;
+  /** Non-empty dataset fields, ready to seed (or fill) a draft form. */
+  fields: Record<string, MultipartValue>;
+  cover: ArtworkImage | null;
+  screenshots: ArtworkImage[];
+  /** The dataset could not be reached (as opposed to the game not being in it). */
+  unavailable?: boolean;
+}
+
 const defaultFetcher: DatasetFetcher = (url) => fetch(url);
 
 const noResult: EnrichmentResult = { resolved: false, metadata: false, cover: false, screenshots: 0 };
+
+const emptyPreview: EnrichmentPreview = { resolved: false, fields: {}, cover: null, screenshots: [] };
+
+type ResolvedDatasetGame =
+  | { kind: 'found'; slug: string; record: DatasetRecord }
+  /** The title/checksum resolution hit a slug whose record fetch came up empty. */
+  | { kind: 'resolved-empty'; slug: string }
+  /** Nothing resolved — including a dead explicit manual-match slug. */
+  | { kind: 'missing' };
+
+/**
+ * Resolution order shared by the write path and the preview: an explicit slug
+ * wins (and must exist — no silent fallback), a stale `metadataId` hint is
+ * verified and otherwise ignored, then checksum-first title resolution.
+ */
+async function resolveDatasetGame(
+  input: Pick<EnrichGameInput, 'slug' | 'metadataId' | 'crc32' | 'title'>,
+  fetcher: DatasetFetcher,
+): Promise<ResolvedDatasetGame> {
+  if (input.slug) {
+    const chosen = await fetchDatasetRecord(input.slug, fetcher);
+    return chosen
+      ? { kind: 'found', slug: input.slug, record: chosen }
+      : { kind: 'missing' };
+  }
+
+  if (input.metadataId) {
+    const record = await fetchDatasetRecord(input.metadataId, fetcher);
+    if (record) return { kind: 'found', slug: input.metadataId, record };
+  }
+
+  const slug = await resolveDatasetSlug(input.crc32, input.title, fetcher);
+  if (!slug) return { kind: 'missing' };
+
+  const record = await fetchDatasetRecord(slug, fetcher);
+  return record ? { kind: 'found', slug, record } : { kind: 'resolved-empty', slug };
+}
 
 /** The `roms[].file` entries are No-Intro filenames — exactly what libretro-thumbnails indexes. */
 function noIntroNameFromRecord(record: DatasetRecord, crc32?: string): string | null {
@@ -74,12 +124,17 @@ async function downscale(image: DatasetImage | null, maxWidth: number): Promise<
   return downscaleImage(toArtwork(image), maxWidth);
 }
 
-async function applyRecord(
-  input: EnrichGameInput,
+/**
+ * The dataset fetch/mapping/image core shared by `enrichGame` (writes the
+ * record) and `previewEnrichment` (holds everything for review): mapped
+ * non-empty fields, the chosen cover, and the capped screenshots.
+ */
+async function fetchDatasetCore(
+  input: Pick<EnrichGameInput, 'manualCover' | 'crc32' | 'title' | 'region'>,
   slug: string,
   record: DatasetRecord,
   fetcher: DatasetFetcher,
-): Promise<EnrichmentResult> {
+): Promise<{ slug: string; fields: Record<string, MultipartValue>; cover: ArtworkImage | null; screenshots: ArtworkImage[] }> {
   // Only non-empty dataset values are written: an import would overwrite them
   // with the same identification defaults anyway, and a sync must not wipe a
   // field the dataset does not cover.
@@ -87,7 +142,6 @@ async function applyRecord(
   const fields = Object.fromEntries(
     Object.entries(mapped).filter(([, value]) => value !== ''),
   ) as Record<string, MultipartValue>;
-  const metadata = Object.keys(fields).length > 0;
 
   const datasetImages = await fetchDatasetImages(slug, record.images, fetcher);
   // Cover order (spec: big box preferred over thumbnail): dataset box first,
@@ -96,18 +150,18 @@ async function applyRecord(
   const boxImage = datasetImages.find((image) => image.kind === 'box') ?? null;
   const thumbImage = datasetImages.find((image) => image.kind === 'thumb') ?? null;
   const snap = datasetImages.find((image) => image.kind === 'snap') ?? null;
-  let finalCover = input.manualCover ? null : await downscale(boxImage, MAX_COVER_WIDTH);
+  let cover = input.manualCover ? null : await downscale(boxImage, MAX_COVER_WIDTH);
   const screenshots: ArtworkImage[] = [];
   const scaledSnap = await downscale(snap, MAX_SCREENSHOT_WIDTH);
   if (scaledSnap) screenshots.push(scaledSnap);
 
   // Complementary provider fills what the dataset lacks: extra screenshots
   // (title screen) and the cover when the dataset has no big box.
-  if (!input.manualCover && (!finalCover || screenshots.length < MAX_SCREENSHOTS)) {
+  if (!input.manualCover && (!cover || screenshots.length < MAX_SCREENSHOTS)) {
     const fallbackName = noIntroNameFromRecord(record, input.crc32) ?? input.title;
-    const fallback = await buildArtworkPayload(fallbackName, { skipCover: Boolean(finalCover) });
+    const fallback = await buildArtworkPayload(fallbackName, { skipCover: Boolean(cover) });
     if (fallback) {
-      if (!finalCover && fallback.cover) finalCover = fallback.cover;
+      if (!cover && fallback.cover) cover = fallback.cover;
       for (const image of fallback.screenshots) {
         if (screenshots.length >= MAX_SCREENSHOTS) break;
         screenshots.push(image);
@@ -115,36 +169,11 @@ async function applyRecord(
     }
   }
 
-  if (!input.manualCover && !finalCover && thumbImage) {
-    finalCover = await downscale(thumbImage, MAX_COVER_WIDTH);
+  if (!input.manualCover && !cover && thumbImage) {
+    cover = await downscale(thumbImage, MAX_COVER_WIDTH);
   }
 
-  if (!metadata && !finalCover && screenshots.length === 0) {
-    return { resolved: true, metadata: false, cover: false, screenshots: 0 };
-  }
-
-  // A manual override keeps its `metadata_source: manual` marker; only the
-  // other fields and images are refreshed (spec: manual cover override).
-  const provenance: Record<string, MultipartValue> = {
-    metadata_id: slug,
-    scraped_at: new Date().toISOString().replace('T', ' '),
-  };
-  if (!input.manualCover) provenance.metadata_source = 'snes-dataset';
-
-  await updateRecord('games', input.id, {
-    ...fields,
-    ...provenance,
-  }, {
-    ...(finalCover ? { cover_image: toFile(finalCover) } : {}),
-    ...(screenshots.length > 0 ? { screenshots: screenshots.map(toFile) } : {}),
-  });
-
-  return {
-    resolved: true,
-    metadata,
-    cover: Boolean(finalCover),
-    screenshots: screenshots.length,
-  };
+  return { slug, fields, cover, screenshots };
 }
 
 /**
@@ -159,32 +188,72 @@ export async function enrichGame(
   const fetcher = options.fetcher ?? defaultFetcher;
 
   try {
-    // An explicit manual match skips resolution entirely: the admin chose this
-    // slug, so a missing record reports "not in dataset" instead of silently
-    // resolving elsewhere.
-    if (input.slug) {
-      const chosen = await fetchDatasetRecord(input.slug, fetcher);
-      if (!chosen) return noResult;
-      return await applyRecord(input, input.slug, chosen, fetcher);
+    const game = await resolveDatasetGame(input, fetcher);
+    if (game.kind === 'missing') return noResult;
+    if (game.kind === 'resolved-empty') {
+      return { resolved: true, metadata: false, cover: false, screenshots: 0 };
     }
 
-    // A slug from a previous run is verified first; stale slugs (including
-    // pre-dataset records whose metadata_id holds a No-Intro name) fall
-    // through to checksum lookup.
-    if (input.metadataId) {
-      const record = await fetchDatasetRecord(input.metadataId, fetcher);
-      if (record) return applyRecord(input, input.metadataId!, record, fetcher);
+    const core = await fetchDatasetCore(input, game.slug, game.record, fetcher);
+    const metadata = Object.keys(core.fields).length > 0;
+    if (!metadata && !core.cover && core.screenshots.length === 0) {
+      return { resolved: true, metadata: false, cover: false, screenshots: 0 };
     }
 
-    const slug = await resolveDatasetSlug(input.crc32, input.title, fetcher);
-    if (!slug) return noResult;
+    // A manual override keeps its `metadata_source: manual` marker; only the
+    // other fields and images are refreshed (spec: manual cover override).
+    const provenance: Record<string, MultipartValue> = {
+      metadata_id: core.slug,
+      scraped_at: new Date().toISOString().replace('T', ' '),
+    };
+    if (!input.manualCover) provenance.metadata_source = 'snes-dataset';
 
-    const record = await fetchDatasetRecord(slug, fetcher);
-    if (!record) return { resolved: true, metadata: false, cover: false, screenshots: 0 };
+    await updateRecord('games', input.id, {
+      ...core.fields,
+      ...provenance,
+    }, {
+      ...(core.cover ? { cover_image: toFile(core.cover) } : {}),
+      ...(core.screenshots.length > 0 ? { screenshots: core.screenshots.map(toFile) } : {}),
+    });
 
-    return await applyRecord(input, slug, record, fetcher);
+    return {
+      resolved: true,
+      metadata,
+      cover: Boolean(core.cover),
+      screenshots: core.screenshots.length,
+    };
   } catch {
     return { ...noResult, unavailable: true };
+  }
+}
+
+/**
+ * Resolve and fetch a dataset record for review WITHOUT writing anything:
+ * the staged draft shows the mapped fields, cover, and screenshots and only
+ * stores them when the game is committed. Never throws (spec: enrichment
+ * never blocks catalog writes).
+ */
+export async function previewEnrichment(
+  input: Omit<EnrichGameInput, 'id'>,
+  options: { fetcher?: DatasetFetcher } = {},
+): Promise<EnrichmentPreview> {
+  const fetcher = options.fetcher ?? defaultFetcher;
+
+  try {
+    const game = await resolveDatasetGame(input, fetcher);
+    if (game.kind === 'missing') return emptyPreview;
+    if (game.kind === 'resolved-empty') return { ...emptyPreview, resolved: true };
+
+    const core = await fetchDatasetCore(input, game.slug, game.record, fetcher);
+    return {
+      resolved: true,
+      slug: core.slug,
+      fields: core.fields,
+      cover: core.cover,
+      screenshots: core.screenshots,
+    };
+  } catch {
+    return { ...emptyPreview, unavailable: true };
   }
 }
 

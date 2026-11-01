@@ -1,18 +1,13 @@
-import {
-  deriveRegion,
-  deriveSlug,
-  cleanDatName,
-  slugify,
-  titleFromFileName,
-} from '@/features/games/slug';
+import { deriveRegion, deriveSlug, titleFromIdentification } from '@/features/games/slug';
 import { stripCopierHeader } from '@/lib/snes/copier';
 import { hashRom } from '@/lib/snes/hash';
 import { parseSnesHeader } from '@/lib/snes/header';
 import type { RomIdentification, SnesHeader } from '@/lib/snes/types';
 import type { Region } from '@/types/games';
 import { adminClient } from './pb';
-import { updateRecord, uploadRecord, type MultipartValue, type UploadProgress } from './upload';
-import { enrichGame, type EnrichmentResult } from '../metadata/enrich';
+import { AuthExpiredError, updateRecord, uploadRecord, type MultipartValue, type UploadProgress } from './upload';
+import { toFile } from '../metadata/image';
+import type { ArtworkImage } from '../metadata/provider';
 
 export interface CatalogGameRecord {
   id: string;
@@ -90,11 +85,7 @@ export function buildCatalogDraft(
   fallbackName: string,
 ): CatalogDraft {
   const fields = result.match?.fields ?? {};
-  const fileNameTitle = titleFromFileName(fallbackName);
-  const rawTitle =
-    result.match?.name ??
-    (slugify(fileNameTitle) ? fileNameTitle : result.header?.title?.trim() || fileNameTitle);
-  const title = cleanDatName(rawTitle);
+  const title = titleFromIdentification(result.match?.name, result.header?.title, fallbackName);
   const year = fields.releaseyear?.slice(0, 4) ?? '';
   const players = fields.maxusers ?? fields.users ?? '';
 
@@ -166,54 +157,74 @@ function normalizedFile(bytes: Uint8Array, slug: string): File {
   });
 }
 
+/** A draft staged for review: editable values plus the held identification, file, and previewed artwork. */
+export interface StagedDraft {
+  /** Catalog values as reviewed (identification defaults, dataset preview, admin edits). */
+  values: CatalogDraft;
+  identification: RomIdentification;
+  file: File;
+  /** Dataset slug the preview resolved to; records the enrichment provenance at commit. */
+  metadataId?: string;
+  /** Previewed cover to store at commit (null when the dataset had none). */
+  cover?: ArtworkImage | null;
+  /** Previewed screenshots to store at commit. */
+  screenshots?: ArtworkImage[];
+}
+
 /**
- * Read a ROM file, strip its copier header, and upload the normalized image
- * with fields matching the stored bytes.
+ * Create a catalog record from a staged draft as reviewed: edited field values
+ * take precedence over dataset values, and the previewed artwork is uploaded
+ * in the same multipart request as the ROM.
  */
 export async function createCatalogRecord(
-  result: RomIdentification,
-  file: File,
+  draft: StagedDraft,
   onProgress?: UploadProgress,
-): Promise<{ game: CatalogGameRecord; enrichment: EnrichmentResult }> {
-  const draft = buildCatalogDraft(result, file.name);
-  const normalized = normalizedFile(new Uint8Array(await file.arrayBuffer()), draft.slug);
+): Promise<{ game: CatalogGameRecord }> {
+  const values = draft.values;
+  const normalized = normalizedFile(new Uint8Array(await draft.file.arrayBuffer()), values.slug);
 
   const created = await uploadRecord<RecordLike>(
     'games',
-    toGameFields(draft),
-    { rom: normalized },
+    {
+      ...toGameFields(values),
+      // Provenance records the dataset resolution the reviewed draft came from.
+      ...(draft.metadataId
+        ? {
+            metadata_source: 'snes-dataset',
+            metadata_id: draft.metadataId,
+            scraped_at: new Date().toISOString().replace('T', ' '),
+          }
+        : {}),
+    },
+    {
+      rom: normalized,
+      ...(draft.cover ? { cover_image: toFile(draft.cover) } : {}),
+      ...(draft.screenshots && draft.screenshots.length > 0
+        ? { screenshots: draft.screenshots.map(toFile) }
+        : {}),
+    },
     onProgress,
   );
   const game = summarize(created);
 
-  await adminClient.collection('roms').create(toRomFields(draft, game.id, true));
+  await adminClient.collection('roms').create(toRomFields(values, game.id, true));
 
-  // Enrichment is best-effort: the import never fails because of it.
-  const enrichment = await enrichGame({
-    id: game.id,
-    crc32: draft.crc32,
-    title: draft.title,
-    region: draft.region,
-    noIntroName: result.match?.name,
-  });
-
-  return { game, enrichment };
+  return { game };
 }
 
-/** Attach an additional regional/revision ROM to an existing game. */
+/** Attach a staged draft's ROM as an additional regional/revision variant. */
 export async function attachVariant(
   game: CatalogGameRecord,
-  result: RomIdentification,
-  file: File,
+  draft: StagedDraft,
   onProgress?: UploadProgress,
 ): Promise<{ game: CatalogGameRecord }> {
-  const draft = buildCatalogDraft(result, file.name);
-  const suffix = `${draft.slug}-${draft.region.toLowerCase()}-rev${draft.revision}`;
-  const normalized = normalizedFile(new Uint8Array(await file.arrayBuffer()), suffix);
+  const values = draft.values;
+  const suffix = `${values.slug}-${values.region.toLowerCase()}-rev${values.revision}`;
+  const normalized = normalizedFile(new Uint8Array(await draft.file.arrayBuffer()), suffix);
 
   await uploadRecord(
     'roms',
-    toRomFields(draft, game.id, false),
+    toRomFields(values, game.id, false),
     { file: normalized },
     onProgress,
   );
@@ -248,4 +259,105 @@ export async function replaceGameRom(
     },
     onProgress,
   );
+}
+
+/** A queued draft as handed to the batch commit. */
+export interface StagedItem {
+  id: string;
+  draft: StagedDraft;
+}
+
+export interface CommitEvents {
+  /** Upload percent (0–100) of one entry's multipart request. */
+  onEntryProgress?: (id: string, percent: number) => void;
+  /** Batch fraction (0–1): finished entries plus the running upload's share. */
+  onTotalProgress?: (fraction: number) => void;
+  /** Commit-phase transition of one entry. */
+  onEntryState?: (
+    id: string,
+    status: 'uploading' | 'done' | 'duplicate' | 'variant' | 'error',
+    data?: { error?: string; result?: { slug: string; title: string } },
+  ) => void;
+}
+
+export interface CommitSummary {
+  added: number;
+  duplicates: number;
+  variants: number;
+  failed: number;
+}
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Could not add the ROM to the catalog.';
+
+/**
+ * Commit staged drafts one at a time (so the single in-flight multipart upload
+ * maps onto the per-game progress bar), applying the duplicate/variant rules
+ * per entry. One entry failing marks only that entry `error`; an expired
+ * admin session stops the rest of the batch, which would all fail the same way.
+ */
+export async function commitStagedDrafts(
+  items: StagedItem[],
+  events: CommitEvents = {},
+): Promise<CommitSummary> {
+  const summary: CommitSummary = { added: 0, duplicates: 0, variants: 0, failed: 0 };
+  /** CRC32s committed earlier in this very batch, so the same ROM twice in a folder cannot create two records. */
+  const batchGames = new Map<string, CatalogGameRecord>();
+  const total = items.length;
+
+  for (const [index, item] of items.entries()) {
+    const { id, draft } = item;
+    const report: UploadProgress = (percent) => {
+      events.onEntryProgress?.(id, percent);
+      events.onTotalProgress?.((index + percent / 100) / total);
+    };
+    events.onEntryState?.(id, 'uploading');
+
+    try {
+      const crc = draft.values.crc32;
+      const inBatch = batchGames.get(crc);
+      const disposition = inBatch
+        ? { kind: 'duplicate' as const, game: inBatch }
+        : await precheckImport(draft.values.slug, crc);
+
+      if (disposition.kind === 'duplicate') {
+        summary.duplicates += 1;
+        events.onEntryState?.(id, 'duplicate', {
+          result: { slug: disposition.game.slug, title: disposition.game.title },
+        });
+        continue;
+      }
+
+      if (disposition.kind === 'variant') {
+        await attachVariant(disposition.game, draft, report);
+        summary.variants += 1;
+        events.onEntryState?.(id, 'variant', {
+          result: { slug: disposition.game.slug, title: disposition.game.title },
+        });
+        continue;
+      }
+
+      const { game } = await createCatalogRecord(draft, report);
+      batchGames.set(crc, game);
+      summary.added += 1;
+      events.onEntryState?.(id, 'done', {
+        result: { slug: game.slug, title: game.title },
+      });
+    } catch (error) {
+      summary.failed += 1;
+      events.onEntryState?.(id, 'error', { error: messageOf(error) });
+      if (error instanceof AuthExpiredError) {
+        for (const remaining of items.slice(index + 1)) {
+          summary.failed += 1;
+          events.onEntryState?.(remaining.id, 'error', { error: messageOf(error) });
+        }
+        return summary;
+      }
+    } finally {
+      events.onEntryProgress?.(id, 100);
+      events.onTotalProgress?.((index + 1) / total);
+    }
+  }
+
+  return summary;
 }

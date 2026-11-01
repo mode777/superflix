@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { adminClient } from '@/admin/lib/pb';
-import { enrichGame } from './enrich';
+import { enrichGame, previewEnrichment } from './enrich';
 import { uploadManualCover } from './artwork';
-import { createCatalogRecord } from '@/admin/lib/importer';
+import { buildCatalogDraft, createCatalogRecord } from '@/admin/lib/importer';
 import { identifyRom } from '@/lib/snes/identify';
 import type { DatasetRecord } from '@/lib/snes-dataset';
 
@@ -163,12 +163,19 @@ describe.skipIf(!enabled)('dataset enrichment against live PocketBase + snes-dat
     const file = new File([bytes as unknown as BlobPart], 'gothicvania.sfc');
     const identification = await identifyRom(bytes, undefined, file.name);
 
-    const { game, enrichment } = await createCatalogRecord(identification, file);
-    createdIds.push(game.id);
+    const draft = buildCatalogDraft(identification, file.name);
+    // gothicvania is homebrew and not in the dataset: the preview resolves
+    // nothing and the import commits identification-only values.
+    const preview = await previewEnrichment({
+      crc32: identification.hashes.crc32,
+      title: draft.title,
+      region: draft.region,
+    });
+    expect(preview.resolved).toBe(false);
+    expect(preview.unavailable).toBeFalsy();
 
-    // gothicvania is homebrew and not in the dataset: import still succeeds.
-    expect(enrichment.resolved).toBe(false);
-    expect(enrichment.unavailable).toBeFalsy();
+    const { game } = await createCatalogRecord({ values: draft, identification, file });
+    createdIds.push(game.id);
 
     const stored = (await adminClient.collection('games').getOne(game.id)) as unknown as GameRecord;
     expect(stored.title).toBe('Gothicvania');

@@ -63,6 +63,20 @@ export function regionFromDat(region: string | undefined): Region | null {
 }
 
 /**
+ * Cleaned title for an identified ROM: the matched DAT name, then the file
+ * name when it produces a usable slug, then the internal header title.
+ */
+export function titleFromIdentification(
+  matchName: string | null | undefined,
+  headerTitle: string | undefined,
+  fileName: string,
+): string {
+  const fileNameTitle = titleFromFileName(fileName);
+  const raw = matchName ?? (slugify(fileNameTitle) ? fileNameTitle : headerTitle?.trim() || fileNameTitle);
+  return cleanDatName(raw);
+}
+
+/**
  * Prefer the internal header's region (it describes the actual file), falling
  * back to the DAT region label and finally NTSC-U.
  */

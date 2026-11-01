@@ -4,7 +4,12 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { identifyRom } from '@/lib/snes/identify';
 import { adminClient } from './pb';
-import { createCatalogRecord, precheckImport, replaceGameRom } from './importer';
+import {
+  buildCatalogDraft,
+  createCatalogRecord,
+  precheckImport,
+  replaceGameRom,
+} from './importer';
 import { applyArtwork } from '../metadata/artwork';
 import type { ArtworkProvider } from '../metadata/provider';
 
@@ -56,8 +61,13 @@ describe.skipIf(!enabled)('catalog importer against a live PocketBase', () => {
     expect(disposition.kind).toBe('create');
 
     const progress: number[] = [];
-    const { game } = await createCatalogRecord(identification, file, (percent) =>
-      progress.push(percent),
+    const { game } = await createCatalogRecord(
+      {
+        values: buildCatalogDraft(identification, file.name),
+        identification,
+        file,
+      },
+      (percent: number) => progress.push(percent),
     );
     createdId = game.id;
 
