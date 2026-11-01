@@ -16,8 +16,8 @@ describe('CRT reference parameters', () => {
       filmicToe: 0.013,
       filmicShoulder: 5.6,
       gamma: 1.18,
-      blurX: 3.6,
-      blurY: 1.8,
+      blurX: 2.4,
+      blurY: 3.6,
     });
   });
 
@@ -25,8 +25,8 @@ describe('CRT reference parameters', () => {
     expect(CRT_OUTPUT).toEqual({ width: 1440, height: 960 });
   });
 
-  it('blurs more horizontally than vertically', () => {
-    expect(CRT_PARAMS.blurX).toBeGreaterThan(CRT_PARAMS.blurY);
+  it('blurs more vertically than horizontally', () => {
+    expect(CRT_PARAMS.blurY).toBeGreaterThan(CRT_PARAMS.blurX);
   });
 });
 
@@ -47,8 +47,8 @@ describe('buildShaderSource', () => {
     expect(source).toContain('#define FILMIC_TOE 0.013');
     expect(source).toContain('#define FILMIC_SHOULDER 5.600');
     expect(source).toContain('#define GAMMA 1.180');
-    expect(source).toContain('#define BLUR_X 3.600');
-    expect(source).toContain('#define BLUR_Y 1.800');
+    expect(source).toContain('#define BLUR_X 2.400');
+    expect(source).toContain('#define BLUR_Y 3.600');
     expect(source).toContain('#define FRAME_WIDTH 1440.000');
     expect(source).toContain('#define FRAME_HEIGHT 960.000');
   });

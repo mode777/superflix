@@ -37,7 +37,7 @@ soften the sampled picture with the anisotropic beam blur required by the
 ### Requirement: Anisotropic beam blur
 
 By default, the effect SHALL soften the sampled picture with a blur that is
-stronger horizontally than vertically. The blur radius SHALL be expressed in
+stronger vertically than horizontally. The blur radius SHALL be expressed in
 fixed frame units so it does not change with the output surface. The blur SHALL
 apply to the base picture and the ghosted halo and SHALL NOT remove the scanline
 modulation. The user-adjustable horizontal and vertical blur values MAY override
@@ -47,8 +47,8 @@ the default ratio.
 
 - **WHEN** the frame contains a high-contrast vertical edge with the default
   values
-- **THEN** the edge is softened more along the horizontal axis than the
-  vertical axis
+- **THEN** the edge is softened more along the vertical axis than the
+  horizontal axis
 
 #### Scenario: Independent override
 

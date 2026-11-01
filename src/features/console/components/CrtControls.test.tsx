@@ -16,10 +16,10 @@ describe('CrtControls', () => {
     );
     expect(
       (screen.getByRole('slider', { name: 'Horizontal blur' }) as HTMLInputElement).value,
-    ).toBe('30');
+    ).toBe('20');
     expect(
       (screen.getByRole('slider', { name: 'Vertical blur' }) as HTMLInputElement).value,
-    ).toBe('15');
+    ).toBe('30');
     expect((screen.getByRole('slider', { name: 'Vignette' }) as HTMLInputElement).value).toBe(
       '40',
     );

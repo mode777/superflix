@@ -46,9 +46,9 @@ export const CRT_PARAMS = {
   filmicShoulder: 5.6,
   gamma: 1.18,
   /** Horizontal beam-blur step, in 1440x960 frame pixels. */
-  blurX: 3.6,
+  blurX: 2.4,
   /** Vertical beam-blur step, in 1440x960 frame pixels. */
-  blurY: 1.8,
+  blurY: 3.6,
 } as const;
 
 /** Mutable shape of the tuned values, for user overrides. */
@@ -121,9 +121,9 @@ vec3 tex(vec2 uv, vec2 span) {
 }
 
 // Inline anisotropic beam blur. The reference reads a pre-blurred buffer
-// here; the horizontal step is larger than the vertical one so the picture
-// softens along the beam without washing out the scanlines. The radii are in
-// fixed-frame pixels, so they do not follow the output surface.
+// here; the tuned defaults soften more vertically than horizontally (h-blur
+// 20%, v-blur 30%). The radii are in fixed-frame pixels, so they do not
+// follow the output surface.
 vec3 tex_blurred(vec2 uv, vec2 span) {
   vec2 d = vec2(BLUR_X / FRAME_WIDTH, BLUR_Y / FRAME_HEIGHT);
   vec3 sum = tex(uv, span) * 2.0;
