@@ -35,3 +35,9 @@
 
 - [x] 6.1 Run `npm run typecheck`, `npm run lint`, and `npm test` and fix any fallout from the flow change — verify all three exit clean
 - [ ] 6.2 Manually exercise `npm run dev` + `npm run pb:serve` with `public/roms/gothicvania.sfc`: single add, multi-file add, folder-scan add, duplicate re-add (duplicate path), and a second region file (variant path), confirming per-game and total progress bars and the dataset preview/edit step — verify each flow against the spec scenarios
+
+## 7. Follow-up fixes (post-release feedback)
+
+- [x] 7.1 Flag catalog duplicates during the staging scan via an injectable CRC32 lookup, exclude them from the ready set and batch count, and mark repeated CRCs within one batch as duplicates of the first entry — verify with queue unit tests (catalog hit, in-batch hit, lookup failure tolerated, preview skipped for duplicates)
+- [x] 7.2 Render scan-time duplicates in the draft cards (existing-game link, in-batch explanation) without the add action — verify with component tests that a known ROM shows as a duplicate and is not counted in "Add N ready games"
+- [x] 7.3 Regenerate the Material Symbols subset for every icon in use and gate the release workflow on `npm run icons:check` — verify the check exits clean and the `library_add` glyph is in the committed manifest

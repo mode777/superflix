@@ -12,8 +12,16 @@ const romPath = path.resolve(process.cwd(), 'public/roms/gothicvania.sfc');
 
 const noDataset: EnrichmentPreview = { resolved: false, fields: {}, cover: null, screenshots: [] };
 
-function candidate(name = 'gothicvania.sfc', bytes = new Uint8Array(1024)) {
-  return { file: new File([bytes], name), path: `Library/${name}` };
+function candidate(name = 'gothicvania.sfc', bytes?: Uint8Array<ArrayBuffer>) {
+  const data =
+    bytes ??
+    (() => {
+      // Distinct bytes per name so staged files have distinct CRCs.
+      const buffer = new Uint8Array(1024);
+      buffer.set(new TextEncoder().encode(name), 0);
+      return buffer;
+    })();
+  return { file: new File([data], name), path: `Library/${name}` };
 }
 
 function states(entries: readonly QueueEntry[]) {
@@ -187,6 +195,56 @@ describe('ImportQueue previewing', () => {
 
     expect(previewEnrichment).not.toHaveBeenCalled();
     expect(queue.getSnapshot().entries[0]?.status).toBe('failed');
+  });
+});
+
+describe('ImportQueue duplicate detection', () => {
+  it('flags a ROM already in the catalog and skips its preview', async () => {
+    const bytes = new Uint8Array(readFileSync(romPath));
+    const queue = new ImportQueue();
+    queue.addCandidates([{ file: new File([bytes], 'gothicvania.sfc'), path: 'gothicvania.sfc' }]);
+
+    await queue.scanAll({
+      findExisting: async () => ({ slug: 'gothicvania', title: 'Gothicvania' }),
+    });
+
+    const entry = queue.getSnapshot().entries[0]!;
+    expect(entry.status).toBe('duplicate');
+    expect(entry.duplicateKind).toBe('catalog');
+    expect(entry.result).toEqual({ slug: 'gothicvania', title: 'Gothicvania' });
+    expect(previewEnrichment).not.toHaveBeenCalled();
+  });
+
+  it('flags a repeated CRC32 within one batch and previews only the first', async () => {
+    const bytes = new Uint8Array(readFileSync(romPath));
+    const queue = new ImportQueue();
+    queue.addCandidates([
+      { file: new File([bytes], 'gothicvania.sfc'), path: 'A/gothicvania.sfc' },
+      { file: new File([bytes], 'gothicvania.sfc'), path: 'B/gothicvania.sfc' },
+    ]);
+
+    await queue.scanAll();
+
+    const [first, second] = queue.getSnapshot().entries;
+    expect(first?.status).toBe('ready');
+    expect(second?.status).toBe('duplicate');
+    expect(second?.duplicateKind).toBe('batch');
+    expect(second?.result).toBeUndefined();
+    expect(previewEnrichment).toHaveBeenCalledTimes(1);
+  });
+
+  it('stages the draft when the catalog lookup fails', async () => {
+    const bytes = new Uint8Array(readFileSync(romPath));
+    const queue = new ImportQueue();
+    queue.addCandidates([{ file: new File([bytes], 'gothicvania.sfc'), path: 'gothicvania.sfc' }]);
+
+    await queue.scanAll({
+      findExisting: async () => {
+        throw new Error('backend offline');
+      },
+    });
+
+    expect(queue.getSnapshot().entries[0]?.status).toBe('ready');
   });
 });
 

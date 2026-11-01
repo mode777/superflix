@@ -10,6 +10,7 @@ import type { EnrichmentPreview } from '@/admin/metadata/enrich';
 const identifyRom = vi.fn();
 const previewEnrichment = vi.fn();
 const commitStagedDrafts = vi.fn();
+const findGameByCrc = vi.fn();
 const listDatasetTitles = vi.fn();
 const showToast = vi.fn();
 
@@ -33,7 +34,13 @@ vi.mock('@/admin/metadata/enrich', async (importOriginal) => {
 });
 vi.mock('@/admin/lib/importer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/admin/lib/importer')>();
-  return { ...actual, commitStagedDrafts, precheckImport: vi.fn(), attachVariant: vi.fn() };
+  return {
+    ...actual,
+    commitStagedDrafts,
+    findGameByCrc,
+    precheckImport: vi.fn(),
+    attachVariant: vi.fn(),
+  };
 });
 vi.mock('@/admin/metadata/dataset', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/admin/metadata/dataset')>();
@@ -114,18 +121,24 @@ async function pickFiles(count: number) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  identifyRom.mockImplementation(async (_bytes: Uint8Array, _index: unknown, fileName?: string) => ({
-    ...identified,
-    fileName,
-  }));
+  // Distinct CRC32 per file index so a multi-file pick is not an in-batch duplicate.
+  identifyRom.mockImplementation(async (_bytes: Uint8Array, _index: unknown, fileName?: string) => {
+    const index = Number(/rom-(\d+)\.sfc/.exec(fileName ?? '')?.[1] ?? 0);
+    return {
+      ...identified,
+      fileName,
+      hashes: { ...identified.hashes, crc32: `88D6337${index}` },
+    };
+  });
   previewEnrichment.mockResolvedValue(datasetPreview);
   commitStagedDrafts.mockResolvedValue({ added: 1, duplicates: 0, variants: 0, failed: 0 });
+  findGameByCrc.mockResolvedValue(null);
   listDatasetTitles.mockResolvedValue([{ title: 'Chrono Trigger', slug: 'chrono-trigger' }]);
 
   URL.createObjectURL = vi.fn(() => 'blob:preview-url');
   URL.revokeObjectURL = vi.fn();
 
-  useRomStore.getState().clearRom('local-88d63376');
+  useRomStore.getState().clearRom('local-88d63370');
 });
 
 describe('ImportQueueTab staging', () => {
@@ -140,6 +153,45 @@ describe('ImportQueueTab staging', () => {
     // Each ready card previews the fetched dataset description.
     expect(screen.getAllByDisplayValue('Fetched description.')).toHaveLength(3);
     expect(screen.getByText('Add 3 ready games')).toBeInTheDocument();
+  });
+
+  it('marks a ROM already in the library as a duplicate and excludes it from the batch (7.2)', async () => {
+    findGameByCrc.mockResolvedValue({ slug: 'gothicvania', title: 'Gothicvania' });
+    const user = userEvent.setup();
+    renderTab();
+    await screen.findByText(/No-Intro index ready/);
+
+    const file = new File([new Uint8Array(8)], 'gothicvania.sfc');
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: { files: [file] },
+    });
+
+    await screen.findByText(/— 1 already in the library/);
+    expect(screen.getByText(/Already in the library as/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the game' })).toHaveAttribute(
+      'href',
+      '/game/gothicvania',
+    );
+    // No draft form and nothing counted for the batch.
+    expect(screen.queryByLabelText('Title')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Add .* ready game/ })).toBeNull();
+    expect(commitStagedDrafts).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(screen.queryByText(/Already in the library as/)).toBeNull();
+  });
+
+  it('flags a repeated file within the batch and adds only one copy (7.2)', async () => {
+    renderTab();
+    await screen.findByText(/No-Intro index ready/);
+
+    const file = new File([new Uint8Array(8)], 'same.sfc');
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: { files: [file, file] },
+    });
+
+    await screen.findByText(/Same ROM as an earlier entry in this batch/);
+    expect(screen.getByRole('button', { name: 'Add 1 ready game' })).toBeInTheDocument();
   });
 
   it('keeps the queue committable when the dataset preview fails (3.3/5.1)', async () => {
@@ -251,7 +303,7 @@ describe('ImportQueueTab progress', () => {
 
     await waitFor(() =>
       expect(previewEnrichment).toHaveBeenCalledWith(
-        expect.objectContaining({ slug: 'chrono-trigger', crc32: '88D63376' }),
+        expect.objectContaining({ slug: 'chrono-trigger', crc32: '88D63370' }),
       ),
     );
     // The card re-seeds from the new preview's slug and fields.
@@ -270,7 +322,7 @@ describe('ImportQueueTab play shortcut', () => {
 
     await user.click(screen.getByRole('button', { name: 'Play locally' }));
 
-    expect(await screen.findByText('PLAY-PROBE:local-88d63376')).toBeInTheDocument();
-    expect(useRomStore.getState().roms['local-88d63376']).toBeTruthy();
+    expect(await screen.findByText('PLAY-PROBE:local-88d63370')).toBeInTheDocument();
+    expect(useRomStore.getState().roms['local-88d63370']).toBeTruthy();
   });
 });

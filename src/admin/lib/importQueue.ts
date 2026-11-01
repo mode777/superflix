@@ -40,6 +40,8 @@ export interface QueueEntry {
   error?: string;
   /** Existing game link for `duplicate`/`variant` outcomes. */
   result?: { slug: string; title: string };
+  /** Why a `duplicate` entry was flagged: already in the catalog, or repeated in this batch. */
+  duplicateKind?: 'catalog' | 'batch';
 }
 
 export interface ImportQueueSnapshot {
@@ -61,6 +63,8 @@ export interface ScanOptions {
   datIndex?: DatIndex | null;
   /** Dataset preview runner (default: the real `previewEnrichment`). */
   preview?: (input: PreviewInput) => Promise<EnrichmentPreview>;
+  /** Catalog lookup by headerless CRC32: a hit means the ROM is already in the library. */
+  findExisting?: (crc32: string) => Promise<{ slug: string; title: string } | null>;
 }
 
 let nextId = 0;
@@ -71,6 +75,8 @@ export class ImportQueue {
   private scan = { done: 0, total: 0 };
   private snapshot: ImportQueueSnapshot = { entries: this.entries, scan: this.scan };
   private scanning = false;
+  /** CRC32s already staged by this queue, so one batch never stages the same ROM twice. */
+  private batchCrcs = new Map<string, string>();
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -141,10 +147,57 @@ export class ImportQueue {
 
         // Fetch the dataset preview for review (never writes); a failure leaves
         // the draft committable with identification-only values.
+        const title = titleFromIdentification(
+          identification.match?.name,
+          identification.header?.title,
+          next.file.name,
+        );
+        const crc = identification.hashes.crc32;
+
+        // Already in the library? Flag it for review instead of staging a draft.
+        // A failed lookup must not fail the entry: the commit re-checks.
+        let existing: { slug: string; title: string } | null = null;
+        if (options.findExisting) {
+          try {
+            existing = await options.findExisting(crc);
+          } catch {
+            existing = null;
+          }
+        }
+        if (existing) {
+          this.update(next.id, {
+            status: 'duplicate',
+            identification,
+            result: existing,
+            duplicateKind: 'catalog',
+            error: undefined,
+          });
+          if (stillQueued()) {
+            this.scan = { ...this.scan, done: this.scan.done + 1 };
+            this.publish();
+          }
+          continue;
+        }
+
+        if (this.batchCrcs.has(crc)) {
+          this.update(next.id, {
+            status: 'duplicate',
+            identification,
+            duplicateKind: 'batch',
+            error: undefined,
+          });
+          if (stillQueued()) {
+            this.scan = { ...this.scan, done: this.scan.done + 1 };
+            this.publish();
+          }
+          continue;
+        }
+        this.batchCrcs.set(crc, title);
+
         this.update(next.id, { status: 'previewing' });
         const preview = await (options.preview ?? previewEnrichment)({
-          crc32: identification.hashes.crc32,
-          title: titleFromIdentification(identification.match?.name, identification.header?.title, next.file.name),
+          crc32: crc,
+          title,
           region: deriveRegion(identification.match?.region, identification.header?.region),
           noIntroName: identification.match?.name,
         });

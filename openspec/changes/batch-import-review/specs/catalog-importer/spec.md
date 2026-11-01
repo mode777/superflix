@@ -98,16 +98,30 @@ For each ready entry the importer SHALL fetch the dataset's metadata, boxart cov
 - **WHEN** the dataset preview for a ready entry cannot be fetched
 - **THEN** the entry remains importable with its identification-only values and the importer reports that metadata could not be fetched
 
-### Requirement: Duplicates within a batch
-At commit time each draft SHALL be checked against the catalog and against its own batch: a ROM whose stripped-image CRC32 already exists in the catalog or elsewhere in the batch SHALL NOT produce a second record, and a draft whose slug collides with an existing record but whose CRC32 differs SHALL be attached to that record as an additional variant.
+### Requirement: Catalog duplicates are flagged before review
+Each staged ROM SHALL be checked against the catalog by its stripped-image CRC32 during the review scan, before any record is written. A ROM whose CRC32 already exists SHALL be marked as a duplicate with a link to the existing game and SHALL NOT become a ready draft or be counted in the batch. A failed lookup SHALL NOT fail the entry; the commit re-checks.
 
 #### Scenario: ROM already in the catalog
-- **WHEN** a batch draft's CRC32 matches an existing catalog record
-- **THEN** no second record is created, the draft is reported as a duplicate, and the admin is offered a link to the existing game
+- **WHEN** a picked or scanned ROM's CRC32 matches an existing catalog record
+- **THEN** the entry is marked as a duplicate during review with a link to the existing game, it is not counted as ready, and committing the batch creates no record for it
+
+#### Scenario: Catalog lookup unavailable
+- **WHEN** the duplicate lookup fails while scanning (for example the backend is unreachable)
+- **THEN** the entry is staged as a normal draft and the commit still refuses to duplicate an existing record
+
+### Requirement: Repeated ROMs within a batch are staged once
+A ROM whose CRC32 repeats an earlier entry of the same batch SHALL be marked as a duplicate of that entry instead of becoming a ready draft, so only one copy is committed.
 
 #### Scenario: Same ROM twice in one batch
 - **WHEN** a scanned folder contains the same ROM more than once
-- **THEN** committing the batch creates a single record and reports the other occurrences as duplicates
+- **THEN** only the first occurrence is staged as a ready draft and the other occurrences are marked as duplicates of that entry
+
+### Requirement: Commit re-checks duplicates
+Committing a batch SHALL repeat the catalog duplicate check so a game added between review and commit cannot be duplicated, and a draft whose slug collides with an existing record but whose CRC32 differs SHALL be attached to that record as an additional variant.
+
+#### Scenario: Duplicate added between review and commit
+- **WHEN** a ROM becomes reachable in the catalog after it was staged but before the batch commit
+- **THEN** the commit refuses to create a second record and reports the draft as a duplicate
 
 #### Scenario: Variant within a batch
 - **WHEN** a batch draft's slug matches an existing record but its CRC32 differs

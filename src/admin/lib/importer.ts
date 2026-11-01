@@ -70,13 +70,18 @@ async function findGame(filter: string): Promise<CatalogGameRecord | null> {
  * CRC32), or attach a regional variant (same slug, different CRC32).
  */
 export async function precheckImport(slug: string, crc32: string): Promise<ImportDisposition> {
-  const byCrc = await findGame(adminClient.filter('rom_crc32 = {:value}', { value: crc32 }));
+  const byCrc = await findGameByCrc(crc32);
   if (byCrc) return { kind: 'duplicate', game: byCrc };
 
   const bySlug = await findGame(adminClient.filter('slug = {:value}', { value: slug }));
   if (bySlug) return { kind: 'variant', game: bySlug };
 
   return { kind: 'create' };
+}
+
+/** Catalog lookup by headerless CRC32, used by the staging scan to flag known ROMs. */
+export async function findGameByCrc(crc32: string): Promise<CatalogGameRecord | null> {
+  return findGame(adminClient.filter('rom_crc32 = {:value}', { value: crc32 }));
 }
 
 /** Build catalog values from an identification result (pure, testable). */

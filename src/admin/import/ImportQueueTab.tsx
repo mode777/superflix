@@ -6,6 +6,7 @@ import { DatasetMatchModal, type DatasetMatch } from '@/admin/DatasetMatchModal'
 import {
   buildCatalogDraft,
   commitStagedDrafts,
+  findGameByCrc,
   type CatalogDraft,
   type StagedDraft,
 } from '@/admin/lib/importer';
@@ -220,17 +221,43 @@ function DraftCard({
         </p>
       )}
 
-      {(entry.status === 'done' || entry.status === 'duplicate' || entry.status === 'variant') &&
+      {entry.status === 'duplicate' && (
+        <div className="mt-4 rounded-xl border border-secondary/25 bg-secondary/5 px-4 py-3 text-body-md text-secondary">
+          {entry.duplicateKind === 'batch' ? (
+            <>
+              Same ROM as an earlier entry in this batch — only one copy will be added.
+            </>
+          ) : (
+            <>
+              Already in the library as <strong>{entry.result?.title ?? 'an existing game'}</strong>.{' '}
+              {entry.result && (
+                <Link
+                  to={`/game/${entry.result.slug}`}
+                  className="underline underline-offset-2 hover:text-on-surface"
+                >
+                  Open the game
+                </Link>
+              )}{' '}
+              This ROM will not be imported again.
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => onRemove(entry.id)}
+            disabled={committing}
+            className="ml-3 underline underline-offset-2 disabled:opacity-50"
+          >
+            Remove
+          </button>
+        </div>
+      )}
+
+      {(entry.status === 'done' || entry.status === 'variant') &&
         entry.result && (
           <p className="mt-4 rounded-xl border border-favorite/25 bg-favorite/5 px-4 py-3 text-body-md text-favorite">
             {entry.status === 'done' && (
               <>
                 <strong>{entry.result.title}</strong> is now in the catalog.{' '}
-              </>
-            )}
-            {entry.status === 'duplicate' && (
-              <>
-                Already in the catalog as <strong>{entry.result.title}</strong>.{' '}
               </>
             )}
             {entry.status === 'variant' && (
@@ -254,7 +281,7 @@ function DraftCard({
         </p>
       )}
 
-      {identification && entry.status !== 'failed' && (
+      {identification && entry.status !== 'failed' && entry.status !== 'duplicate' && (
         <DraftForm
           entry={entry}
           committing={committing}
@@ -525,7 +552,7 @@ export function ImportQueueTab() {
 
   const handleFiles = (candidates: RomCandidate[]) => {
     queue.addCandidates(candidates);
-    void queue.scanAll({ datIndex: datQuery.data });
+    void queue.scanAll({ datIndex: datQuery.data, findExisting: findGameByCrc });
   };
 
   const commit = async (ids: string[]) => {
@@ -612,6 +639,11 @@ export function ImportQueueTab() {
 
   const readyIds = entries.filter((entry) => entry.status === 'ready').map((entry) => entry.id);
   const scanRunning = scan.total > 0 && scan.done < scan.total;
+  // Only scan-time duplicates are reported in the review line; commit-time
+  // duplicates are outcomes of a batch that already ran.
+  const duplicateCount = entries.filter(
+    (entry) => entry.status === 'duplicate' && entry.duplicateKind,
+  ).length;
   const matchEntry = matchId ? entries.find((entry) => entry.id === matchId) : null;
 
   const openMatch = (id: string) => {
@@ -639,7 +671,9 @@ export function ImportQueueTab() {
           <p className="text-body-md text-on-surface-variant">
             {scanRunning
               ? `Identifying ${scan.done} of ${scan.total}…`
-              : `Found ${entries.length} game${entries.length === 1 ? '' : 's'} — review each draft below, then add them.`}
+              : duplicateCount > 0
+                ? `Found ${entries.length} game${entries.length === 1 ? '' : 's'} — ${duplicateCount} already in the library. Review the rest, then add them.`
+                : `Found ${entries.length} game${entries.length === 1 ? '' : 's'} — review each draft below, then add them.`}
           </p>
           {readyIds.length > 0 && (
             <button
