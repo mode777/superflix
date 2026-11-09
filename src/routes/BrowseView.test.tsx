@@ -23,6 +23,8 @@ describe('BrowseView', () => {
     renderBrowse();
     const headings = await screen.findAllByRole('heading', { name: 'Super Mario World' });
     expect(headings.length).toBeGreaterThan(0);
-    expect(screen.getByText('Library')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Library' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Every classic/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Play featured/i })).not.toBeInTheDocument();
   });
 });

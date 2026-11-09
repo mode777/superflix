@@ -58,8 +58,9 @@ npm run dats:fetch   # No-Intro + libretro metadata DATs → public/data/
 npm run dev          # http://127.0.0.1:5173
 ```
 
-Open http://127.0.0.1:5173 and click **Play featured** to run the bundled
-MIT-licensed **Gothicvania** demo. No backend is needed for the player.
+Open http://127.0.0.1:5173 and open a game from the grid, then choose **Play**
+to run it. The bundled MIT-licensed **Gothicvania** demo is in the mock
+catalog, and no backend is needed for the player.
 
 ### Admin / importer (superuser only)
 

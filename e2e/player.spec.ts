@@ -47,7 +47,7 @@ test.describe.serial('player', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
 
     await page.goto('/#/game/gothicvania');
-    await page.getByRole('link', { name: /Play in browser/i }).click();
+    await page.getByRole('link', { name: 'Play', exact: true }).click();
     await expect(page).toHaveURL(/#\/play\/gothicvania/);
 
     await expect(page.getByTestId('player-canvas')).toBeVisible();

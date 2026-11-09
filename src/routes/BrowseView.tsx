@@ -9,12 +9,6 @@ import { useGames } from '@/features/games/useGames';
 import { useFavorites } from '@/features/favorites/useFavorites';
 import { useAuthStore } from '@/features/auth/authStore';
 import { ALL_GENRE, GENRES } from '@/types/games';
-import { dataSource } from '@/lib/pb';
-import browseShot from '../../docs/assets/browse.png';
-import detailsShot from '../../docs/assets/details.png';
-import playerShot from '../../docs/assets/player.png';
-
-const DOCS_URL = 'https://github.com/mode777/superflix/blob/main/docs/README.md';
 
 function GridSkeleton() {
   return (
@@ -41,99 +35,12 @@ export default function BrowseView() {
   const { games, total, isLoading, isError, refetch } = useGames({ search, genre });
   const { favoriteIds } = useFavorites();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const featured = games[0] ?? null;
   const favoriteGames = games.filter((game) => favoriteIds.has(game.id));
 
   return (
     <>
       <AmbientBackground />
       <main className="relative mx-auto max-w-page px-margin-mobile pb-24 pt-32 md:px-margin-desktop">
-        <section className="mb-14 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-label-caps uppercase tracking-[0.2em] text-primary">
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                sports_esports
-              </span>
-              16-bit library
-            </span>
-            <h1 className="mt-5 text-headline-xl-mobile font-extrabold tracking-tight text-on-surface md:text-headline-xl">
-              Every classic,
-              <br />
-              one shelf.
-            </h1>
-            <p className="mt-5 max-w-xl text-body-lg text-on-surface-variant">
-              Browse the Super Nintendo library, open a detail page, and play in the browser. ROMs
-              stay on your machine or in your own PocketBase instance.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  document
-                    .getElementById('library')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-                className="rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
-              >
-                Browse the shelf
-              </button>
-              <a
-                href={DOCS_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
-              >
-                Read the docs
-              </a>
-              <Link
-                to="/admin"
-                className="rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
-              >
-                Import a ROM
-              </Link>
-              {featured && (
-                <Link
-                  to={`/play/${featured.slug}`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
-                >
-                  <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-                    play_arrow
-                  </span>
-                  Play featured
-                </Link>
-              )}
-            </div>
-            {dataSource === 'mock' && (
-              <p className="mt-5 text-body-md text-on-surface-variant/80">
-                Demo catalog. Import a ROM or connect PocketBase to populate real entries.
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-3">
-            <img
-              src={browseShot}
-              alt="Superflix browse grid showing the demo catalog"
-              className="w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
-              loading="lazy"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <img
-                src={detailsShot}
-                alt="Game details page with cover, metadata, and screenshots"
-                className="w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
-                loading="lazy"
-              />
-              <img
-                src={playerShot}
-                alt="Snes9x running the bundled Gothicvania demo in the browser player"
-                className="w-full rounded-2xl border border-white/10 object-cover shadow-2xl"
-                loading="lazy"
-              />
-            </div>
-          </div>
-        </section>
-
         {isAuthenticated && favoriteGames.length > 0 && (
           <section className="mb-10">
             <div className="mb-4 flex items-baseline justify-between gap-4">

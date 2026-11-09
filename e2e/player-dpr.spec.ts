@@ -29,7 +29,7 @@ test.describe.serial('player at DPR 2', () => {
     test.slow();
 
     await page.goto('/#/game/gothicvania');
-    await page.getByRole('link', { name: /Play in browser/i }).click();
+    await page.getByRole('link', { name: 'Play', exact: true }).click();
     await expect(page).toHaveURL(/#\/play\/gothicvania/);
 
     await expect(page.getByTestId('player-canvas')).toBeVisible();

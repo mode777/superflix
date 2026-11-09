@@ -5,8 +5,9 @@ test.describe('browse', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByRole('heading', { name: /Every classic/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Every classic/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Play featured/i })).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Gothicvania/i }).first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Platform', exact: true }).click();

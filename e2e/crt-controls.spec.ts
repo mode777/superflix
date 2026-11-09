@@ -6,7 +6,7 @@ const SEVERITIES = ['serious', 'critical'];
 
 async function startDemo(page: Page) {
   await page.goto('/#/game/gothicvania');
-  await page.getByRole('link', { name: /Play in browser/i }).click();
+  await page.getByRole('link', { name: 'Play', exact: true }).click();
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await expect(page.getByTestId('runtime-status')).toHaveText(/live|playing/i, {
     timeout: 90_000,

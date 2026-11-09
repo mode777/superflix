@@ -1,7 +1,7 @@
 export function AttributionPanel() {
   return (
     <details className="glass-panel mt-12 rounded-2xl p-6">
-      <summary className="cursor-pointer text-headline-lg text-on-surface">
+      <summary className="cursor-pointer text-body-md font-semibold text-on-surface">
         Metadata &amp; artwork credits
       </summary>
       <div className="mt-4 flex flex-col gap-3 text-body-md text-on-surface-variant">

@@ -144,18 +144,12 @@ export default function DetailsView() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to={`/play/${game.slug}`}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-primary to-tertiary-container px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-body-md font-semibold text-on-primary transition hover:brightness-110"
               >
                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
                   play_arrow
                 </span>
-                Play in browser
-              </Link>
-              <Link
-                to="/admin"
-                className="rounded-lg border border-white/15 bg-white/[0.04] px-5 py-2.5 text-body-md font-semibold text-on-surface transition hover:border-white/25 hover:bg-white/[0.08]"
-              >
-                Import another ROM
+                Play
               </Link>
               <button
                 type="button"

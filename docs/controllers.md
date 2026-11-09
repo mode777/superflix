@@ -1,6 +1,6 @@
 # Playing and controllers
 
-Open a game and choose **Play in browser**. The Snes9x core runs in WebAssembly
+Open a game and choose **Play**. The Snes9x core runs in WebAssembly
 and the ROM is loaded whole (256 KB–8 MB); nothing is streamed.
 
 ## Keyboard
